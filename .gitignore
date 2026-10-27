@@ -1,0 +1,22 @@
+# 隐私与运行态（永不入库）
+.edge-profile/
+*.session
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# 前端
+node_modules/
+
+# 会话临时物
+.tmp/
+docx-build/node_modules/
+docx-build/*.png
+docx-build/*.pdf
+
+# 参考仓库与构建产物（不入本项目版本库）
+commerce-agents/
+docx-build/

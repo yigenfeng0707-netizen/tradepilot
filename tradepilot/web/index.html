@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TradePilot · 跨境电商智能运营台</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header id="topbar">
+  <div class="brand">◈ TradePilot <span class="sub">跨境电商全链路智能运营 OPC 智能体</span></div>
+  <div class="health" id="health">连接中…</div>
+</header>
+
+<main id="layout">
+  <section id="left">
+    <div class="panel" id="mission-panel">
+      <h2>任务下达（单一目标 · 自主编排）</h2>
+      <label>任务目标<textarea id="goal" rows="2">把宠物用品切入美国站，先看真实市场再定价格与合规</textarea></label>
+      <div class="grid2">
+        <label>品类关键词<input id="keyword" value="dog bed"></label>
+        <label>数据源<select id="source">
+          <option value="dangdang" selected>dangdang（国内参考价 ¥）</option>
+          <option value="walmart">walmart（美国站 $，部署态）</option>
+        </select></label>
+        <label>合规品类<select id="category">
+          <option value="pet" selected>pet（宠物）</option>
+          <option value="home">home（家居）</option>
+          <option value="electronics">electronics（电子）</option>
+        </select></label>
+        <label>采购价 ¥（留空=取中位数）<input id="unit_cost_cny" type="number" step="1" placeholder="自动"></label>
+        <label>头程 USD/件<input id="freight" type="number" step="0.5" value="2.5"></label>
+        <label>关税 %<input id="duty" type="number" step="0.5" value="7.0"></label>
+        <label>尾程 USD/件<input id="lastmile" type="number" step="0.5" value="5.5"></label>
+      </div>
+      <button id="run">▶ 下达任务（自主编排）</button>
+      <div id="engine-note" class="note"></div>
+    </div>
+
+    <div class="panel">
+      <h2>决策时间线（实录）</h2>
+      <div id="decisions" class="decisions"><div class="empty">等待任务下达…</div></div>
+    </div>
+  </section>
+
+  <section id="right">
+    <div class="panel">
+      <h2>竞品矩阵 <span class="tag" id="prov-count">来源存证 0</span></h2>
+      <table id="competitors"><thead>
+        <tr><th>#</th><th>商品（真实抓取）</th><th>价格</th><th>来源</th></tr>
+      </thead><tbody></tbody></table>
+    </div>
+    <div class="panel">
+      <h2>定价沙盘</h2>
+      <div id="pricing" class="kv empty">待竞品实采后自动计算</div>
+    </div>
+    <div class="panel">
+      <h2>合规体检（官方来源现场验证）</h2>
+      <div id="compliance" class="empty">待任务执行</div>
+    </div>
+    <div class="panel">
+      <h2>Listing 工坊</h2>
+      <div id="listing" class="empty">待任务执行</div>
+    </div>
+  </section>
+</main>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
