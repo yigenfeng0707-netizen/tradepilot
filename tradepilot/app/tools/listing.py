@@ -32,12 +32,24 @@ async def run(tool_input: dict[str, Any]) -> ToolOutcome:
     keyword = str(tool_input.get("keyword", "")).strip() or items[0]["title"][:40]
     goal = str(tool_input.get("goal", "list this product overseas"))
 
+    # 定价与合规结论作为文案事实面（来自前序工具的真实产出，非编造）
+    ctx = tool_input.get("context") or {}
+    pricing = ctx.get("pricing_sandbox") or {}
+    compliance = ctx.get("compliance_check") or {}
+
     facts = {
         "keyword": keyword,
         "reference_price_band": {**band, "currency": currency},
         "item_n": len(items),
         "sample_titles": [i["title"] for i in items[:3]],
+        "positioning": pricing.get("suggestion", {}).get("positioning"),
+        "floor_price_usd": pricing.get("floor_price"),
+        "compliance_items": [
+            {"item": c.get("item"), "authority": c.get("authority")}
+            for c in compliance.get("checks", [])
+        ][:3] or None,
     }
+    facts = {k: v for k, v in facts.items() if v}
 
     generated_by = "template"
     copy = None

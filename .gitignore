@@ -2,6 +2,7 @@
 .edge-profile/
 *.session
 .env
+tradepilot/.llm_key
 
 # Python
 __pycache__/

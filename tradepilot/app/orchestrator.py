@@ -34,6 +34,9 @@ WIRING = {
     "listing_draft": {"item_ids": "market_scan.items[].provenance_id"},
 }
 
+# listing 额外消费前序结论（定价/合规）作为文案事实面（非 provenance 数据点）
+LISTING_CONTEXT_KEYS = ("pricing_sandbox", "compliance_check")
+
 
 def build_registry() -> executor.Registry:
     reg = executor.Registry()
@@ -67,6 +70,8 @@ def _wired_input(step: str, state: dict[str, Any], params: dict[str, Any]) -> di
     if step == "listing_draft":
         tool_input.setdefault("keyword", params.get("keyword", ""))
         tool_input.setdefault("goal", params.get("goal", ""))
+        context = {k: state.get(k, {}).get("data", {}) for k in LISTING_CONTEXT_KEYS}
+        tool_input["context"] = {k: v for k, v in context.items() if v}
     return tool_input
 
 

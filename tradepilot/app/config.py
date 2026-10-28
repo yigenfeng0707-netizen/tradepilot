@@ -6,13 +6,27 @@ import os
 from dataclasses import dataclass, field
 
 
+def _read_local_key() -> str:
+    """本地密钥文件（.llm_key，已 gitignore）：单人开发用，优先级低于环境变量。"""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".llm_key")
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return fh.read().strip()
+    except OSError:
+        return ""
+
+
 @dataclass
 class Config:
-    # LLM 网关（默认阶跃星辰 step_plan，OpenAI 兼容；Key 走环境变量，不落代码库。
+    # LLM 网关（默认书生 InternAI 聚合网关，OpenAI 兼容，多模型聚合。
+    # Key 来源：环境变量 LLM_API_KEY > 本地 .llm_key 文件；均不落代码库。
     # 无 key 时编排器走规则兜底，作品依然全流程可跑）
-    llm_base_url: str = field(default_factory=lambda: os.environ.get("LLM_BASE_URL", "https://api.stepfun.com/step_plan/v1"))
-    llm_api_key: str = field(default_factory=lambda: os.environ.get("LLM_API_KEY", ""))
-    llm_model: str = field(default_factory=lambda: os.environ.get("LLM_MODEL", "step-5-preview"))
+    llm_base_url: str = field(default_factory=lambda: os.environ.get(
+        "LLM_BASE_URL", "https://discovery-api.intern-ai.org.cn/v1"))
+    llm_api_key: str = field(default_factory=lambda: os.environ.get(
+        "LLM_API_KEY", "") or _read_local_key())
+    llm_model: str = field(default_factory=lambda: os.environ.get(
+        "LLM_MODEL", "Atria-Dawn"))
 
     # 抓取策略
     fetch_timeout_s: int = 45
