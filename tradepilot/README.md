@@ -49,8 +49,9 @@ uvicorn app.main:app --host 127.0.0.1 --port 7860
 可选增强（无 Key 也能完整跑通，走规则流水线）：
 
 ```bash
-set LLM_API_KEY=你的智谱Key        # 规划与 Listing 文案升级为 LLM
-set LLM_MODEL=glm-4-flash
+set LLM_API_KEY=你的阶跃Key        # 规划与 Listing 文案升级为 LLM
+# 默认网关已指向阶跃 step_plan（https://api.stepfun.com/step_plan/v1）
+# 默认模型 step-5-preview；换其他供应商时用 LLM_BASE_URL / LLM_MODEL 覆盖
 ```
 
 ## 任务流（一次任务 = 4 张决策卡 + 一份可溯源报告）

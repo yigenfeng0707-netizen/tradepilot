@@ -8,10 +8,11 @@ from dataclasses import dataclass, field
 
 @dataclass
 class Config:
-    # LLM 网关（可选：无 key 时编排器走规则兜底，作品依然全流程可跑）
-    llm_base_url: str = field(default_factory=lambda: os.environ.get("LLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4"))
+    # LLM 网关（默认阶跃星辰 step_plan，OpenAI 兼容；Key 走环境变量，不落代码库。
+    # 无 key 时编排器走规则兜底，作品依然全流程可跑）
+    llm_base_url: str = field(default_factory=lambda: os.environ.get("LLM_BASE_URL", "https://api.stepfun.com/step_plan/v1"))
     llm_api_key: str = field(default_factory=lambda: os.environ.get("LLM_API_KEY", ""))
-    llm_model: str = field(default_factory=lambda: os.environ.get("LLM_MODEL", "glm-4-flash"))
+    llm_model: str = field(default_factory=lambda: os.environ.get("LLM_MODEL", "step-5-preview"))
 
     # 抓取策略
     fetch_timeout_s: int = 45
