@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import time
 from typing import Any
 
@@ -66,20 +67,22 @@ async def fetch_browser(url: str) -> dict[str, Any]:
     return await loop.run_in_executor(None, _fetch_browser_sync, url)
 
 
+def _browser_executable() -> str | None:
+    """浏览器路径选择：魔搭云环境（/usr/bin/chromium 存在）用系统浏览器，本地用 Playwright 自带。"""
+    for path in ("/usr/bin/chromium", "/usr/bin/chromium-browser"):
+        if os.path.exists(path):
+            return path
+    return None
+
+
 def _fetch_browser_sync(url: str) -> dict[str, Any]:
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as p:
-        # 使用系统 chromium（魔搭云环境无 Playwright 自带浏览器）
         browser = p.chromium.launch(
             headless=CONFIG.browser_headless,
-            channel="chromium",  # 使用系统 chromium
-            args=[
-                "--no-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-gpu",
-                "--disable-extensions",
-            ],
+            executable_path=_browser_executable(),
+            args=["--no-sandbox", "--disable-dev-shm-usage"],
         )
         page = browser.new_page(user_agent=UA, locale="en-US",
                                 viewport={"width": 1440, "height": 900})
