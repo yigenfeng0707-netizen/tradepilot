@@ -70,7 +70,17 @@ def _fetch_browser_sync(url: str) -> dict[str, Any]:
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=CONFIG.browser_headless)
+        # 使用系统 chromium（魔搭云环境无 Playwright 自带浏览器）
+        browser = p.chromium.launch(
+            headless=CONFIG.browser_headless,
+            channel="chromium",  # 使用系统 chromium
+            args=[
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+                "--disable-extensions",
+            ],
+        )
         page = browser.new_page(user_agent=UA, locale="en-US",
                                 viewport={"width": 1440, "height": 900})
         try:
