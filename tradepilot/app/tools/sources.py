@@ -33,16 +33,25 @@ SOURCES = {
 def parse_dangdang(html: str, source_url: str) -> list[dict[str, Any]]:
     """解析当当搜索页（浏览器渲染后 DOM）：按 <li> 块切分，块内配对标题与现价。
 
-    - 价格：class="search_now_price">¥259.00（真实现价）；
+    - 价格：兼容两种渲染模式：search_now_price（大图）与 price_n（列表/小图）；
     - 标题：a[title] 属性，长度 14–90 过滤掉排序控件（≤10 字）与店铺名（<14 字）；
     - 块内独立配对，杜绝跨商品错配；解析不出返回空列表（调用方如实报错）。
     """
     items: list[dict[str, Any]] = []
     seen: set[str] = set()
+    # 两个价格标记各试一次，先大图后列表
+    price_patterns = [
+        r'class="search_now_price"[^>]*>[^¥￥]*[¥￥]\s?([0-9]+(?:\.[0-9]{1,2})?)',
+        r'class="price_n"[^>]*>[^¥￥]*[¥￥]\s?([0-9]+(?:\.[0-9]{1,2})?)',
+    ]
     for chunk in re.split(r"<li\b", html)[1:]:
-        price_m = re.search(
-            r'class="search_now_price"[^>]*>[^¥￥]*[¥￥]\s?([0-9]+(?:\.[0-9]{1,2})?)', chunk)
-        if not price_m:
+        price_raw = None
+        for pat in price_patterns:
+            m = re.search(pat, chunk)
+            if m:
+                price_raw = m.group(1)
+                break
+        if price_raw is None:
             continue
         title_m = re.search(r'title="([^"]{14,90})"', chunk)
         if not title_m:
@@ -52,7 +61,7 @@ def parse_dangdang(html: str, source_url: str) -> list[dict[str, Any]]:
             continue
         seen.add(title)
         link = re.search(r'href="(https?://[^"]*dangdang\.com[^"]*\.html[^"]*)"', chunk)
-        items.append({"title": title, "price": float(price_m.group(1)),
+        items.append({"title": title, "price": float(price_raw),
                       "source_url": (link.group(1) if link else source_url)})
         if len(items) >= 16:
             break

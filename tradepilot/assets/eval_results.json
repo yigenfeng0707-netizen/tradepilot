@@ -1,0 +1,200 @@
+{
+ "meta": {
+  "generated_at": "2026-10-28T01:18:19+00:00",
+  "mode": "llm",
+  "repeats": 2,
+  "agent_total_wall_s": 1162.4,
+  "honesty_notes": [
+   "agent 侧指标全部自动实测，可复算",
+   "人工基线待真人按 docs/eval/人工SOP.md 计时后填入 human_baseline（禁估算）",
+   "美国站竞品带（walmart 源）在部署态启用后，band_source 将从 domestic_reference 升级为 us_retail"
+  ]
+ },
+ "summary": {
+  "pet": {
+   "runs": 2,
+   "elapsed_mean_s": 280.8,
+   "elapsed_stdev_s": 55.23,
+   "items_mean": 8,
+   "steps_success_rate": 1.0,
+   "compliance_verified_mean": 0.75,
+   "llm_planned_rate": 1.0
+  },
+  "home": {
+   "runs": 2,
+   "elapsed_mean_s": 201.7,
+   "elapsed_stdev_s": 5.09,
+   "items_mean": 8,
+   "steps_success_rate": 1.0,
+   "compliance_verified_mean": 0.75,
+   "llm_planned_rate": 0.9
+  },
+  "electronics": {
+   "runs": 2,
+   "elapsed_mean_s": 98.7,
+   "elapsed_stdev_s": 15.63,
+   "items_mean": 0,
+   "steps_success_rate": 0.4,
+   "compliance_verified_mean": 0.5,
+   "llm_planned_rate": 1.0
+  }
+ },
+ "runs": [
+  {
+   "category": "pet",
+   "keyword": "dog bed",
+   "repeat": 1,
+   "mission_id": "mission-20261028-005857",
+   "elapsed_s": 241.7,
+   "steps_done": 5,
+   "steps_total": 5,
+   "decisions": 5,
+   "llm_planned": 5,
+   "items_n": 8,
+   "price_band": {
+    "min": 36.7,
+    "median": 98.71,
+    "max": 259.0
+   },
+   "currency": "CNY",
+   "floor_price_usd": 36.68,
+   "band_source": "domestic_reference（现场汇率折算的国内零售参考价）",
+   "compliance_verified": 3,
+   "compliance_total": 4,
+   "listing_source": "template",
+   "errors": []
+  },
+  {
+   "category": "pet",
+   "keyword": "dog bed",
+   "repeat": 2,
+   "mission_id": "mission-20261028-010258",
+   "elapsed_s": 319.8,
+   "steps_done": 5,
+   "steps_total": 5,
+   "decisions": 5,
+   "llm_planned": 5,
+   "items_n": 8,
+   "price_band": {
+    "min": 36.7,
+    "median": 98.71,
+    "max": 259.0
+   },
+   "currency": "CNY",
+   "floor_price_usd": 36.68,
+   "band_source": "domestic_reference（现场汇率折算的国内零售参考价）",
+   "compliance_verified": 3,
+   "compliance_total": 4,
+   "listing_source": "llm(基于存证事实；价格等数字以服务端回填为准",
+   "errors": []
+  },
+  {
+   "category": "home",
+   "keyword": "wall clock",
+   "repeat": 1,
+   "mission_id": "mission-20261028-010818",
+   "elapsed_s": 198.1,
+   "steps_done": 5,
+   "steps_total": 5,
+   "decisions": 5,
+   "llm_planned": 5,
+   "items_n": 8,
+   "price_band": {
+    "min": 7.0,
+    "median": 20.6,
+    "max": 101.0
+   },
+   "currency": "CNY",
+   "floor_price_usd": 17.39,
+   "band_source": "domestic_reference（现场汇率折算的国内零售参考价）",
+   "compliance_verified": 3,
+   "compliance_total": 4,
+   "listing_source": "llm(基于存证事实；价格等数字以服务端回填为准",
+   "errors": []
+  },
+  {
+   "category": "home",
+   "keyword": "wall clock",
+   "repeat": 2,
+   "mission_id": "mission-20261028-011136",
+   "elapsed_s": 205.3,
+   "steps_done": 5,
+   "steps_total": 5,
+   "decisions": 5,
+   "llm_planned": 4,
+   "items_n": 8,
+   "price_band": {
+    "min": 7.0,
+    "median": 20.6,
+    "max": 101.0
+   },
+   "currency": "CNY",
+   "floor_price_usd": 17.39,
+   "band_source": "domestic_reference（现场汇率折算的国内零售参考价）",
+   "compliance_verified": 3,
+   "compliance_total": 4,
+   "listing_source": "llm(基于存证事实；价格等数字以服务端回填为准",
+   "errors": []
+  },
+  {
+   "category": "electronics",
+   "keyword": "usb c cable",
+   "repeat": 1,
+   "mission_id": "mission-20261028-011502",
+   "elapsed_s": 109.7,
+   "steps_done": 2,
+   "steps_total": 5,
+   "decisions": 5,
+   "llm_planned": 5,
+   "items_n": 0,
+   "price_band": null,
+   "currency": null,
+   "floor_price_usd": null,
+   "band_source": null,
+   "compliance_verified": 2,
+   "compliance_total": 4,
+   "listing_source": "error",
+   "errors": [
+    "market_scan",
+    "pricing_sandbox",
+    "listing_draft"
+   ]
+  },
+  {
+   "category": "electronics",
+   "keyword": "usb c cable",
+   "repeat": 2,
+   "mission_id": "mission-20261028-011651",
+   "elapsed_s": 87.6,
+   "steps_done": 2,
+   "steps_total": 5,
+   "decisions": 5,
+   "llm_planned": 5,
+   "items_n": 0,
+   "price_band": null,
+   "currency": null,
+   "floor_price_usd": null,
+   "band_source": null,
+   "compliance_verified": 2,
+   "compliance_total": 4,
+   "listing_source": "error",
+   "errors": [
+    "market_scan",
+    "pricing_sandbox",
+    "listing_draft"
+   ]
+  }
+ ],
+ "provenance_totals": {
+  "total": 113,
+  "distinct_sources": 6
+ },
+ "human_baseline": {
+  "_说明": "由真人按 docs/eval/人工SOP.md 执行并计时后填写，禁估算",
+  "task_time_min": null,
+  "data_points_collected": null,
+  "sources_cited": null,
+  "performed_by": null,
+  "performed_at": null
+ }
+}

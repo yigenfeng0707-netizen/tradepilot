@@ -1,0 +1,393 @@
+[
+ {
+  "provenance_id": 113,
+  "kind": "policy",
+  "url": "https://hts.usitc.gov",
+  "fetched_at": "2026-10-28T01:18:11+00:00",
+  "payload": {
+   "item": "出口美国须按 HTS 编码申报关税（电子产品税率普遍 0–5%）",
+   "live": {
+    "http_status": 200,
+    "live": true,
+    "bytes": 11058
+   }
+  }
+ },
+ {
+  "provenance_id": 110,
+  "kind": "policy",
+  "url": "https://hts.usitc.gov",
+  "fetched_at": "2026-10-28T01:16:41+00:00",
+  "payload": {
+   "item": "出口美国须按 HTS 编码申报关税（电子产品税率普遍 0–5%）",
+   "live": {
+    "http_status": 200,
+    "live": true,
+    "bytes": 11057
+   }
+  }
+ },
+ {
+  "provenance_id": 107,
+  "kind": "policy",
+  "url": "https://hts.usitc.gov",
+  "fetched_at": "2026-10-28T01:13:41+00:00",
+  "payload": {
+   "item": "出口美国须按 HTS 编码申报关税（家居品类）",
+   "live": {
+    "http_status": 200,
+    "live": true,
+    "bytes": 11057
+   }
+  }
+ },
+ {
+  "provenance_id": 104,
+  "kind": "fx",
+  "url": "https://api.frankfurter.dev/v1/latest?base=USD&symbols=CNY",
+  "fetched_at": "2026-10-28T01:13:08+00:00",
+  "payload": {
+   "base": "USD",
+   "quote": "CNY",
+   "rate": 6.6675
+  }
+ },
+ {
+  "provenance_id": 101,
+  "kind": "item",
+  "url": "https://search.dangdang.com/?key=wall+clock&act=input",
+  "fetched_at": "2026-10-28T01:12:07+00:00",
+  "payload": {
+   "title": "我爱乐理.3 吉林出版集团股份有限公司【正版】",
+   "price": 7.0,
+   "source_url": "https://search.dangdang.com/?key=wall+clock&act=input",
+   "currency": "CNY",
+   "source": "dangdang"
+  }
+ },
+ {
+  "provenance_id": 98,
+  "kind": "item",
+  "url": "https://search.dangdang.com/?key=wall+clock&act=input",
+  "fetched_at": "2026-10-28T01:12:07+00:00",
+  "payload": {
+   "title": "我爱乐理123册英皇考ABRSM乐理启蒙",
+   "price": 72.69,
+   "source_url": "https://search.dangdang.com/?key=wall+clock&act=input",
+   "currency": "CNY",
+   "source": "dangdang"
+  }
+ },
+ {
+  "provenance_id": 95,
+  "kind": "policy",
+  "url": "https://hts.usitc.gov",
+  "fetched_at": "2026-10-28T01:10:30+00:00",
+  "payload": {
+   "item": "出口美国须按 HTS 编码申报关税（家居品类）",
+   "live": {
+    "http_status": 200,
+    "live": true,
+    "bytes": 11056
+   }
+  }
+ },
+ {
+  "provenance_id": 92,
+  "kind": "fx",
+  "url": "https://api.frankfurter.dev/v1/latest?base=USD&symbols=CNY",
+  "fetched_at": "2026-10-28T01:09:32+00:00",
+  "payload": {
+   "base": "USD",
+   "quote": "CNY",
+   "rate": 6.6675
+  }
+ },
+ {
+  "provenance_id": 89,
+  "kind": "item",
+  "url": "https://search.dangdang.com/?key=wall+clock&act=input",
+  "fetched_at": "2026-10-28T01:08:46+00:00",
+  "payload": {
+   "title": "我爱乐理.3 吉林出版集团股份有限公司【正版】",
+   "price": 7.0,
+   "source_url": "https://search.dangdang.com/?key=wall+clock&act=input",
+   "currency": "CNY",
+   "source": "dangdang"
+  }
+ },
+ {
+  "provenance_id": 86,
+  "kind": "item",
+  "url": "https://search.dangdang.com/?key=wall+clock&act=input",
+  "fetched_at": "2026-10-28T01:08:46+00:00",
+  "payload": {
+   "title": "我爱乐理123册英皇考ABRSM乐理启蒙",
+   "price": 72.69,
+   "source_url": "https://search.dangdang.com/?key=wall+clock&act=input",
+   "currency": "CNY",
+   "source": "dangdang"
+  }
+ },
+ {
+  "provenance_id": 83,
+  "kind": "policy",
+  "url": "https://hts.usitc.gov",
+  "fetched_at": "2026-10-28T01:05:56+00:00",
+  "payload": {
+   "item": "出口美国须按 HTS 编码申报关税（宠物用品类目）",
+   "live": {
+    "http_status": 200,
+    "live": true,
+    "bytes": 11058
+   }
+  }
+ },
+ {
+  "provenance_id": 80,
+  "kind": "fx",
+  "url": "https://api.frankfurter.dev/v1/latest?base=USD&symbols=CNY",
+  "fetched_at": "2026-10-28T01:04:59+00:00",
+  "payload": {
+   "base": "USD",
+   "quote": "CNY",
+   "rate": 6.6675
+  }
+ },
+ {
+  "provenance_id": 77,
+  "kind": "item",
+  "url": "https://search.dangdang.com/?key=dog+bed&act=input",
+  "fetched_at": "2026-10-28T01:03:50+00:00",
+  "payload": {
+   "title": "【Dog Man 12 精装 单本】 神探狗狗Dog Man英文原版幽默漫画 Cat Kid番外平装 儿童英文图像小说",
+   "price": 73.79,
+   "source_url": "https://search.dangdang.com/?key=dog+bed&act=input",
+   "currency": "CNY",
+   "source": "dangdang"
+  }
+ },
+ {
+  "provenance_id": 74,
+  "kind": "item",
+  "url": "https://search.dangdang.com/?key=dog+bed&act=input",
+  "fetched_at": "2026-10-28T01:03:50+00:00",
+  "payload": {
+   "title": "按需印刷Buster the Noodle Head Dog Goes to Bed",
+   "price": 116.0,
+   "source_url": "https://search.dangdang.com/?key=dog+bed&act=input",
+   "currency": "CNY",
+   "source": "dangdang"
+  }
+ },
+ {
+  "provenance_id": 71,
+  "kind": "policy",
+  "url": "https://hts.usitc.gov",
+  "fetched_at": "2026-10-28T01:00:14+00:00",
+  "payload": {
+   "item": "出口美国须按 HTS 编码申报关税（宠物用品类目）",
+   "live": {
+    "http_status": 200,
+    "live": true,
+    "bytes": 11057
+   }
+  }
+ },
+ {
+  "provenance_id": 68,
+  "kind": "fx",
+  "url": "https://api.frankfurter.dev/v1/latest?base=USD&symbols=CNY",
+  "fetched_at": "2026-10-28T00:59:44+00:00",
+  "payload": {
+   "base": "USD",
+   "quote": "CNY",
+   "rate": 6.6675
+  }
+ },
+ {
+  "provenance_id": 65,
+  "kind": "item",
+  "url": "https://search.dangdang.com/?key=dog+bed&act=input",
+  "fetched_at": "2026-10-28T00:59:21+00:00",
+  "payload": {
+   "title": "【Dog Man 12 精装 单本】 神探狗狗Dog Man英文原版幽默漫画 Cat Kid番外平装 儿童英文图像小说",
+   "price": 73.79,
+   "source_url": "https://search.dangdang.com/?key=dog+bed&act=input",
+   "currency": "CNY",
+   "source": "dangdang"
+  }
+ },
+ {
+  "provenance_id": 62,
+  "kind": "item",
+  "url": "https://search.dangdang.com/?key=dog+bed&act=input",
+  "fetched_at": "2026-10-28T00:59:21+00:00",
+  "payload": {
+   "title": "按需印刷Buster the Noodle Head Dog Goes to Bed",
+   "price": 116.0,
+   "source_url": "https://search.dangdang.com/?key=dog+bed&act=input",
+   "currency": "CNY",
+   "source": "dangdang"
+  }
+ },
+ {
+  "provenance_id": 59,
+  "kind": "policy",
+  "url": "https://hts.usitc.gov",
+  "fetched_at": "2026-10-28T00:57:12+00:00",
+  "payload": {
+   "item": "出口美国须按 HTS 编码申报关税（电子产品税率普遍 0–5%）",
+   "live": {
+    "http_status": 200,
+    "live": true,
+    "bytes": 11058
+   }
+  }
+ },
+ {
+  "provenance_id": 56,
+  "kind": "policy",
+  "url": "https://oehha.ca.gov/proposition-65",
+  "fetched_at": "2026-10-28T00:56:56+00:00",
+  "payload": {
+   "item": "加州 Prop 65 化学物质警示标签（按材质评估）",
+   "live": {
+    "http_status": 200,
+    "live": true,
+    "bytes": 948
+   }
+  }
+ },
+ {
+  "provenance_id": 53,
+  "kind": "policy",
+  "url": "https://oehha.ca.gov/proposition-65",
+  "fetched_at": "2026-10-28T00:56:44+00:00",
+  "payload": {
+   "item": "带毛/纺织类宠物用品注意加州 Prop 65 警示标签义务",
+   "live": {
+    "http_status": 200,
+    "live": true,
+    "bytes": 212
+   }
+  }
+ },
+ {
+  "provenance_id": 50,
+  "kind": "item",
+  "url": "https://search.dangdang.com/?key=dog+bed&act=input",
+  "fetched_at": "2026-10-28T00:50:15+00:00",
+  "payload": {
+   "title": "Dog Man Petey Doll 神探狗狗中等皮蒂猫公仔 侦探狗狗玩具 官方正版周边 美国学乐Scholastic",
+   "price": 79.05,
+   "source_url": "https://search.dangdang.com/?key=dog+bed&act=input",
+   "currency": "CNY",
+   "source": "dangdang"
+  }
+ },
+ {
+  "provenance_id": 47,
+  "kind": "item",
+  "url": "https://search.dangdang.com/?key=dog+bed&act=input",
+  "fetched_at": "2026-10-28T00:50:15+00:00",
+  "payload": {
+   "title": "【弘书阁】神探狗狗的冒险10 英文原版 The Adventures of Dog Man 狗狗侦探 课外阅读章节漫画书",
+   "price": 58.0,
+   "source_url": "https://search.dangdang.com/?key=dog+bed&act=input",
+   "currency": "CNY",
+   "source": "dangdang"
+  }
+ },
+ {
+  "provenance_id": 44,
+  "kind": "item",
+  "url": "https://search.dangdang.com/?key=dog+bed&act=input",
+  "fetched_at": "2026-10-28T00:50:15+00:00",
+  "payload": {
+   "title": "【预售 按需印刷】Buster the Noodle Head Dog Goes to Bed",
+   "price": 98.71,
+   "source_url": "https://search.dangdang.com/?key=dog+bed&act=input",
+   "currency": "CNY",
+   "source": "dangdang"
+  }
+ },
+ {
+  "provenance_id": 41,
+  "kind": "item",
+  "url": "https://search.dangdang.com/?key=dog+bed&act=input",
+  "fetched_at": "2026-10-28T00:41:43+00:00",
+  "payload": {
+   "title": "Dog Man Petey Doll 神探狗狗中等皮蒂猫公仔 侦探狗狗玩具 官方正版周边 美国学乐Scholastic",
+   "price": 79.05,
+   "source_url": "https://search.dangdang.com/?key=dog+bed&act=input",
+   "currency": "CNY",
+   "source": "dangdang"
+  }
+ },
+ {
+  "provenance_id": 38,
+  "kind": "item",
+  "url": "https://search.dangdang.com/?key=dog+bed&act=input",
+  "fetched_at": "2026-10-28T00:41:43+00:00",
+  "payload": {
+   "title": "【弘书阁】神探狗狗的冒险10 英文原版 The Adventures of Dog Man 狗狗侦探 课外阅读章节漫画书",
+   "price": 58.0,
+   "source_url": "https://search.dangdang.com/?key=dog+bed&act=input",
+   "currency": "CNY",
+   "source": "dangdang"
+  }
+ },
+ {
+  "provenance_id": 35,
+  "kind": "item",
+  "url": "https://search.dangdang.com/?key=dog+bed&act=input",
+  "fetched_at": "2026-10-28T00:41:43+00:00",
+  "payload": {
+   "title": "【预售 按需印刷】Buster the Noodle Head Dog Goes to Bed",
+   "price": 98.71,
+   "source_url": "https://search.dangdang.com/?key=dog+bed&act=input",
+   "currency": "CNY",
+   "source": "dangdang"
+  }
+ },
+ {
+  "provenance_id": 32,
+  "kind": "item",
+  "url": "https://search.dangdang.com/?key=dog+bed&act=input",
+  "fetched_at": "2026-10-28T00:38:30+00:00",
+  "payload": {
+   "title": "Dog Man Petey Doll 神探狗狗中等皮蒂猫公仔 侦探狗狗玩具 官方正版周边 美国学乐Scholastic",
+   "price": 79.05,
+   "source_url": "https://search.dangdang.com/?key=dog+bed&act=input",
+   "currency": "CNY",
+   "source": "dangdang"
+  }
+ },
+ {
+  "provenance_id": 29,
+  "kind": "item",
+  "url": "https://search.dangdang.com/?key=dog+bed&act=input",
+  "fetched_at": "2026-10-28T00:38:30+00:00",
+  "payload": {
+   "title": "【弘书阁】神探狗狗的冒险10 英文原版 The Adventures of Dog Man 狗狗侦探 课外阅读章节漫画书",
+   "price": 58.0,
+   "source_url": "https://search.dangdang.com/?key=dog+bed&act=input",
+   "currency": "CNY",
+   "source": "dangdang"
+  }
+ },
+ {
+  "provenance_id": 26,
+  "kind": "item",
+  "url": "https://search.dangdang.com/?key=dog+bed&act=input",
+  "fetched_at": "2026-10-28T00:38:29+00:00",
+  "payload": {
+   "title": "【预售 按需印刷】Buster the Noodle Head Dog Goes to Bed",
+   "price": 98.71,
+   "source_url": "https://search.dangdang.com/?key=dog+bed&act=input",
+   "currency": "CNY",
+   "source": "dangdang"
+  }
+ }
+]

@@ -80,11 +80,12 @@ function renderCompliance(data) {
   box.className = "";
   box.innerHTML = `<div class="kv"><div class="row"><span>品类</span><span><b>${data.category}</b> · ${data.live_verified}/${data.total} 条来源现场验证</span></div></div>`
     + data.checks.map((c) => {
-      const badge = c.live_verified
-        ? `<span class="badge ok">来源有效</span>`
-        : `<span class="badge off">来源瞬时不可达</span>`;
+      const badge = c.live
+        ? `<span class="badge ok">来源有效 HTTP ${c.http_status}</span>`
+        : `<span class="badge off">引用标注 · 当前网络不可达</span>`;
+      const kind = c.kind === "platform" ? "平台规则" : "官方权威";
       return `<div class="check"><div>${c.item} ${badge}</div>
-        <div class="src">${c.authority} · <a href="${c.source_url}" target="_blank">${c.source_url}</a>${c.provenance_id ? " · 存证#" + c.provenance_id : ""}</div></div>`;
+        <div class="src">[${kind}] ${c.authority} · <a href="${c.source_url}" target="_blank">${c.source_url}</a>${c.provenance_id ? " · 存证#" + c.provenance_id : ""}</div></div>`;
     }).join("");
 }
 
