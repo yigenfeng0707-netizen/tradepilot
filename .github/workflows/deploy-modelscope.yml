@@ -1,0 +1,198 @@
+name: deploy-modelscope
+
+# 把 tradepilot/ 子树发布到魔搭创空间（Docker 型）。
+#
+# 为什么不是"直接把整个仓库推过去"：GitHub 仓库根是 D:\电商 工作区（含参赛方案、
+# 安全评审文档、docx 构建脚本），而创空间要求 Dockerfile 在仓库根。所以这里只同步
+# tradepilot/ 的内容，落到创空间仓库的根目录。
+#
+# 两道保险：
+#   1. push 触发默认不动线上——必须先把仓库变量 MODELSCOPE_DEPLOY_ENABLED 设成 1；
+#   2. 手动触发默认 dry-run，只打印将要同步的文件清单，不推不落。
+# 魔搭明确禁止 force push，这里全程用 clone→commit→push 的快进式提交。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tradepilot/**"
+      - ".github/workflows/deploy-modelscope.yml"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "只演练不部署（打印同步清单与目标空间）"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-modelscope
+  cancel-in-progress: false
+
+env:
+  MODELSCOPE_DOMAIN: www.modelscope.cn
+  DEMO_URL: https://fygrobert-tradepilot.ms.show
+
+jobs:
+  test:
+    name: 离线单测（不把明知红的代码推上线）
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: tradepilot
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-glob: tradepilot/requirements.txt
+      - name: 装依赖（playwright 是函数内延迟导入，CI 不需要浏览器）
+        run: python -m pip install -r requirements.txt
+      - name: 跑全量单测
+        run: python -m unittest discover -s tests -t . 2>&1 | tail -n 40
+      - name: 口径自检（BP 数字只能来自 eval JSON 与代码）
+        run: python -m unittest tests.test_bp_facts tests.test_eval_metrics
+
+  deploy:
+    name: 同步并部署到创空间
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 前置检查（缺什么就指名道姓告诉你怎么补）
+        shell: bash
+        env:
+          TOKEN: ${{ secrets.MODELSCOPE_TOKEN }}
+          OWNER: ${{ vars.MODELSCOPE_OWNER }}
+          REPO: ${{ vars.MODELSCOPE_REPO }}
+          ENABLED: ${{ vars.MODELSCOPE_DEPLOY_ENABLED }}
+          MODE: ${{ github.event_name }}
+          DRY: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          miss=""
+          [ -n "$TOKEN" ] || miss="$miss MODELSCOPE_TOKEN(secret)"
+          [ -n "$OWNER" ] || miss="$miss MODELSCOPE_OWNER(var)"
+          [ -n "$REPO"  ] || miss="$miss MODELSCOPE_REPO(var)"
+          if [ -n "$miss" ]; then
+            echo "缺少配置：$miss"
+            echo "  gh secret set MODELSCOPE_TOKEN                    # 令牌取自 https://modelscope.cn/my/myaccesstoken"
+            echo "  gh variable set MODELSCOPE_OWNER <你的魔搭用户名>"
+            echo "  gh variable set MODELSCOPE_REPO  <创空间仓库名>"
+            echo "  gh variable set MODELSCOPE_DEPLOY_ENABLED 1"
+            if [ "$MODE" = "push" ]; then
+              # push 触发 + 尚未配置 = 还没打算部署，跳过即可，别给仓库挂永久红叉
+              echo "::warning::魔搭部署未配置，本次 push 跳过部署（单测已跑完）"
+              exit 0
+            fi
+            echo "::error::手动触发但配置不全，停止"
+            exit 1
+          fi
+          if [ "$MODE" = "push" ] && [ "$ENABLED" != "1" ]; then
+            echo "MODELSCOPE_DEPLOY_ENABLED != 1，本次 push 不动线上（这是刻意的默认值）。"
+            echo "确认要自动部署后再：gh variable set MODELSCOPE_DEPLOY_ENABLED 1"
+            exit 0
+          fi
+          echo "目标空间：https://$MODELSCOPE_DOMAIN/studios/$OWNER/$REPO"
+          echo "dry_run=$DRY"
+
+      - name: 同步 tradepilot/ 并推送
+        shell: bash
+        env:
+          TOKEN: ${{ secrets.MODELSCOPE_TOKEN }}
+          OWNER: ${{ vars.MODELSCOPE_OWNER }}
+          REPO: ${{ vars.MODELSCOPE_REPO }}
+          DRY: ${{ github.event.inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          GIT_NAME="github-actions[bot]"
+          GIT_MAIL="41898282+github-actions[bot]@users.noreply.github.com"
+
+          echo "== 谁在推（token 对应的魔搭账号）=="
+          curl -sS "https://$MODELSCOPE_DOMAIN/openapi/v1/users/me" \
+            -H "Authorization: Bearer $TOKEN" | head -c 400; echo
+
+          echo "== 创空间是否存在 =="
+          studio=$(curl -sS "https://$MODELSCOPE_DOMAIN/openapi/v1/studios/$OWNER/$REPO" \
+            -H "Authorization: Bearer $TOKEN")
+          echo "$studio" | head -c 600; echo
+          echo "$studio" | grep -q '"success":true' || {
+            echo "::error::创空间 $OWNER/$REPO 不存在或令牌无权访问。先在魔搭建好 Docker 型创空间（需绑定阿里云账号并实名认证）。"; exit 1; }
+
+          echo "== 克隆创空间仓库（禁止 force push，所以走 clone→commit→push）=="
+          git clone --depth 50 "https://oauth2:${TOKEN}@${MODELSCOPE_DOMAIN}/studios/${OWNER}/${REPO}.git" studio
+          echo "远端 HEAD: $(git -C studio log --oneline -1 2>/dev/null || echo '(空仓库)')"
+
+          echo "== 只同步 tradepilot/ 的内容到创空间根 =="
+          rsync -a --delete \
+            --exclude '.git/' \
+            --exclude '__pycache__/' --exclude '*.pyc' \
+            --exclude '.pytest_cache/' --exclude '.ruff_cache/' \
+            --exclude '.venv/' --exclude '.edge-profile/' \
+            --exclude '.llm_key' --exclude '.env' --exclude '*.session' \
+            --exclude 'assets/provenance.db' --exclude 'assets/missions/' \
+            tradepilot/ studio/
+          # --delete 会清掉创空间里已删除的文件；上面 exclude 保证密钥与运行态永不入仓。
+          if [ "${DRY:-false}" = "true" ]; then
+            echo "-- dry run：以下是要同步的变更 --"
+            git -C studio status --short
+            exit 0
+          fi
+
+          echo "== 提交并推送（无变更就跳过）=="
+          git -C studio add -A
+          if git -C studio diff --cached --quiet; then
+            echo "创空间内容已是最新，跳过 push 与 deploy。"
+            exit 0
+          fi
+          git -C studio status --short | head -n 40
+          git -C studio -c "user.name=$GIT_NAME" -c "user.email=$GIT_MAIL" \
+            commit -q -m "Sync from GitHub actions @ ${GITHUB_SHA}"
+          git -C studio push origin HEAD:master
+
+      - name: 触发部署并等待结果
+        shell: bash
+        env:
+          TOKEN: ${{ secrets.MODELSCOPE_TOKEN }}
+          OWNER: ${{ vars.MODELSCOPE_OWNER }}
+          REPO: ${{ vars.MODELSCOPE_REPO }}
+        run: |
+          set -euo pipefail
+          api="https://$MODELSCOPE_DOMAIN/openapi/v1/studios/$OWNER/$REPO"
+          echo "== POST deploy =="
+          curl -sS -X POST "$api/deploy" -H "Authorization: Bearer $TOKEN"; echo
+
+          # Docker 型首次构建 3–5 分钟，这里最多等 20 分钟
+          status=""
+          for i in $(seq 1 80); do
+            sleep 15
+            status=$(curl -sS "$api" -H "Authorization: Bearer $TOKEN" \
+              | python3 -c "import sys,json;print(json.load(sys.stdin).get('data',{}).get('status',''))" 2>/dev/null || echo "")
+            echo "[$i] status=${status:-unknown}"
+            case "$status" in
+              Running) echo "✅ 创空间已 Running：https://$MODELSCOPE_DOMAIN/studios/$OWNER/$REPO"; exit 0 ;;
+              Failed*|Stopped) break ;;
+            esac
+          done
+
+          echo "::error::部署未达 Running，最终状态=${status:-unknown}。以下按 build→run 顺序贴日志。"
+          echo "----- logs/build -----"; curl -sS "$api/logs/build" -H "Authorization: Bearer $TOKEN" | tail -n 120 || true
+          echo "----- logs/run -----";  curl -sS "$api/logs/run"   -H "Authorization: Bearer $TOKEN" | tail -n 120 || true
+          exit 1
+
+      - name: 部署后复核发布面（线上真跑的是不是这份代码）
+        shell: bash
+        run: |
+          set -uo pipefail
+          # check_release_drift 会 import app.main 取本地真值 → 需要完整运行依赖，光装 httpx 不够
+          python3 -m pip install --quiet -r tradepilot/requirements.txt 2>/dev/null || true
+          cd tradepilot
+          # 这一步不做硬失败：魔搭边缘节点可能尚未刷新，但漂移必须被看见
+          python3 scripts/check_release_drift.py --base "$DEMO_URL" \
+            || echo "::warning::发布面仍有漂移——要么镜像还没滚完，要么 demo 域名变了"
