@@ -19,6 +19,7 @@
       <label>任务目标<textarea id="goal" rows="2">把宠物用品切入美国站，先看真实市场再定价格与合规</textarea></label>
       <div class="grid2">
         <label>品类关键词<input id="keyword" value="dog bed"></label>
+        <label>源站检索词（留空自动映射）<input id="keyword_cn" placeholder="如：狗床"></label>
         <label>数据源<select id="source">
           <option value="dangdang" selected>dangdang（国内参考价 ¥）</option>
           <option value="walmart">walmart（美国站 $，部署态）</option>
@@ -27,6 +28,12 @@
           <option value="pet" selected>pet（宠物）</option>
           <option value="home">home（家居）</option>
           <option value="electronics">electronics（电子）</option>
+        </select></label>
+        <label>目标站点<select id="marketplace">
+          <option value="US" selected>US（美国站）</option>
+          <option value="UK">UK（英国站）</option>
+          <option value="DE">DE（德国站）</option>
+          <option value="JP">JP（日本站）</option>
         </select></label>
         <label>采购价 ¥（留空=取中位数）<input id="unit_cost_cny" type="number" step="1" placeholder="自动"></label>
         <label>头程 USD/件<input id="freight" type="number" step="0.5" value="2.5"></label>
@@ -62,8 +69,17 @@
       <h2>Listing 工坊</h2>
       <div id="listing" class="empty">待任务执行</div>
     </div>
+    <div class="panel">
+      <h2>文案合规审计 <span class="tag" id="audit-tag">字符上限 · 违禁宣称 · 堆砌</span></h2>
+      <div id="audit" class="empty">待 Listing 成稿后自动审计</div>
+    </div>
   </section>
 </main>
+
+<footer id="footbar">
+  <span id="archive-note" class="note">任务记录：本地存档，可导出上架包</span>
+  <span id="export-links"></span>
+</footer>
 
 <script src="/static/app.js"></script>
 </body>

@@ -33,8 +33,8 @@ SAMPLE_OUT = Path(__file__).resolve().parents[1] / "assets" / "audit_sample.json
 
 async def run_one(cat: dict, repeat: int, use_llm: bool) -> dict:
     from app import llm
-    if not use_llm:
-        llm.CONFIG.llm_api_key = ""  # 规则流水线模式（确定性）
+    # 规则模式用显式开关（而不是清空 Key），保证评测口径可复现
+    llm.CONFIG.llm_disabled = not use_llm
 
     t0 = time.time()
     report = None
@@ -52,6 +52,7 @@ async def run_one(cat: dict, repeat: int, use_llm: bool) -> dict:
     pricing = r.get("pricing_sandbox", {})
     compliance = r.get("compliance_check", {})
     listing = r.get("listing_draft", {})
+    audit = r.get("listing_audit", {})
     decisions = report["decisions"]
 
     return {
@@ -61,7 +62,12 @@ async def run_one(cat: dict, repeat: int, use_llm: bool) -> dict:
         "steps_done": sum(1 for s in r.values() if s.get("status") == "done"),
         "steps_total": len(r),
         "decisions": len(decisions),
+        # 口径说明：llm_decisions = LLM 实际做出选择的步数；
+        # llm_overrides = 模型选择与规则评分不一致、最终采纳模型的步数（真正的自主证据）
         "llm_planned": sum(1 for d in decisions if d["reason"].startswith("LLM")),
+        "llm_overrides": (report.get("autonomy") or {}).get("llm_overrides", 0),
+        "retries": (report.get("autonomy") or {}).get("retries", 0),
+        "degraded": (report.get("autonomy") or {}).get("steps_degraded") or [],
         "items_n": len(scan.get("data", {}).get("items", [])),
         "price_band": scan.get("data", {}).get("price_band"),
         "currency": scan.get("data", {}).get("currency"),
@@ -71,6 +77,9 @@ async def run_one(cat: dict, repeat: int, use_llm: bool) -> dict:
         "compliance_total": compliance.get("data", {}).get("total"),
         "listing_source": (listing.get("data", {}).get("generated_by", "")[:24]
                            if listing.get("status") == "done" else listing.get("status")),
+        "audit_score": (audit.get("data") or {}).get("score"),
+        "audit_grade": (audit.get("data") or {}).get("grade"),
+        "audit_critical": ((audit.get("data") or {}).get("counts") or {}).get("critical"),
         "errors": [k for k, s in r.items() if s.get("status") == "error"],
     }
 
@@ -125,6 +134,11 @@ async def main() -> None:
                 r["compliance_verified"] / r["compliance_total"] for r in rs), 3),
             "llm_planned_rate": round(statistics.mean(
                 r["llm_planned"] / r["decisions"] for r in rs), 3),
+            "llm_override_total": sum(r["llm_overrides"] for r in rs),
+            "retries_total": sum(r["retries"] for r in rs),
+            "audit_score_mean": (round(statistics.mean(
+                r["audit_score"] for r in rs if r["audit_score"] is not None), 1)
+                if any(r["audit_score"] is not None for r in rs) else None),
         }
 
     result = {
@@ -136,8 +150,10 @@ async def main() -> None:
             "honesty_notes": [
                 "agent 侧指标全部自动实测，可复算",
                 "人工基线待真人按 docs/eval/人工SOP.md 计时后填入 human_baseline（禁估算）",
-                "美国站竞品带（walmart 源）在部署态启用后，band_source 将从 "
-                "domestic_reference 升级为 us_retail",
+                "llm_planned_rate = LLM 做出选择的步数占比；与规则序一致不构成自主证据，"
+                "llm_override_total 才是（模型选择与规则评分不一致并被采纳的次数）",
+                "walmart 源经 robots.txt 校验对通用 UA 禁止 /search，故 band_source 仍为 "
+                "domestic_reference；美国站真实竞品带需接该站官方 API 授权后启用",
             ],
         },
         "summary": summary,

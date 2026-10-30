@@ -1,0 +1,23 @@
+# 隐私与运行态（永不入库）
+.llm_key
+.env
+*.session
+.edge-profile/
+
+# 来源存证与任务存档（运行时产物，可由抓取重建；入库会让仓库膨胀且含第三方页面数据）
+assets/provenance.db
+assets/missions/
+*.db-journal
+*.db-wal
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# 构建与导出产物
+dist/
+build/
+*.log

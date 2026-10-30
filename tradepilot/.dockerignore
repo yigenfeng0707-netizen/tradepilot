@@ -1,0 +1,16 @@
+# 构建上下文裁剪：密钥与运行态数据绝不进镜像
+.llm_key
+.env
+*.db
+assets/
+tests/
+docs/
+.git/
+.github/
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+scripts/probe_*.py
+*.md
+!README.md

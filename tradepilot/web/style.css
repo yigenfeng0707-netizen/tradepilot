@@ -65,3 +65,29 @@ td a:hover { color: var(--accent); }
   border-radius: 6px; padding: 10px; font-size: 12px; margin-top: 6px; }
 #listing .copy b { color: var(--accent); }
 #listing ul { margin: 6px 0 0 18px; }
+
+/* 决策卡：候选集与重试标记 */
+.card .cands { color: #5c7288; font-size: 11px; margin-top: 3px; }
+.card .retry { background: #3a2d10; color: var(--warn); font-size: 10px;
+  padding: 1px 6px; border-radius: 8px; font-weight: 400; }
+
+/* 文案审计 */
+.scorebar { display: flex; gap: 14px; align-items: center; padding: 6px 0 10px;
+  border-bottom: 1px dashed var(--line); margin-bottom: 8px; }
+.score { font-size: 30px; font-weight: 800; line-height: 1; }
+.score span { font-size: 12px; color: var(--dim); font-weight: 400; }
+.score.ok { color: var(--good); } .score.mid { color: var(--warn); } .score.bad { color: var(--bad); }
+.verdict b { color: var(--text); font-size: 13px; }
+.issue { padding: 6px 0; border-bottom: 1px dashed var(--line); font-size: 12px; }
+.issue b { font-weight: 700; }
+.issue.critical b { color: var(--bad); }
+.issue.warning b { color: var(--warn); }
+.issue.info b { color: var(--dim); }
+.issue .ev { color: var(--dim); margin-left: 6px; }
+.issue .fix { color: #8fb4c9; font-size: 11px; margin-top: 2px; }
+
+/* 底部存档与导出 */
+#footbar { display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 20px 18px; font-size: 12px; color: var(--dim); }
+#footbar a { color: var(--accent); text-decoration: none; }
+#footbar a:hover { text-decoration: underline; }

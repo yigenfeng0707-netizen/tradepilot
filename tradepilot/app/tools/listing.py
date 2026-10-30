@@ -2,8 +2,13 @@
 """Listing 工坊：从真实数据组织上架文案包。
 
 - 有 LLM：模型只做英文文案组织（facts 由服务端给定，禁编造）；
-- 无 LLM：结构化模板生成，逐条复用真实竞品价格带与合规要点；
-- 输出中 AI 生成内容显式标注（generated_by: llm/template），一切数字仍服务端回填。
+- 无 LLM：输出**合规骨架**——结构合法的标题 + 5 条卖点，规格类信息以
+  `[ADD: ...]` 占位符明确标出，绝不编造参数。骨架不是可上架成品，下游
+  listing_audit 会把未填占位符判为必改项，形成"生成 → 审计 → 补齐"的闭环；
+- 输出中 AI 生成内容显式标注（generated_by: llm/template），一切数字服务端回填。
+
+价格口径：优先用定价沙盘已折算的目标站价格带（USD），而不是原始抓取币种——
+美国站文案里出现 ¥ 是本地化错误。
 """
 from __future__ import annotations
 
@@ -12,8 +17,22 @@ from typing import Any
 from .. import llm, provenance
 from .executor import ToolOutcome
 
-TEMPLATE_TITLE = "{keyword} | Durable Everyday {category_cap} for Home & Travel"
-TEMPLATE_BULLET = "Positioned against {n} live market listings priced {sym}{band_min:.2f}-{sym}{band_max:.2f}"
+# 骨架模板：只写不需要产品参数就能成立的话，参数一律留占位符
+SKELETON_BULLETS = [
+    "Built for daily use: [ADD: primary material and construction, plus one verifiable "
+    "spec such as thickness, load capacity, or fabric composition]",
+    "Easy care routine: [ADD: how to clean it — machine wash, spot clean, removable "
+    "cover — and how often buyers should do it]",
+    "Right size matters: [ADD: dimensions and the pet weight range this size suits; "
+    "ask buyers to measure before ordering]",
+    "Where it fits: [ADD: rooms, floor types, crate or car use — be specific about the "
+    "surfaces it grips]",
+    "What's in the box: [ADD: item count, cover, insert, and any care card included]",
+]
+
+
+def _title_case(keyword: str) -> str:
+    return " ".join(w.capitalize() if len(w) > 2 else w for w in keyword.split())
 
 
 async def run(tool_input: dict[str, Any]) -> ToolOutcome:
@@ -24,25 +43,38 @@ async def run(tool_input: dict[str, Any]) -> ToolOutcome:
              if p and p["kind"] == "item"]
     if not items:
         return ToolOutcome(False, "error", None, "存证中无可用商品数据点")
-    currency = items[0].get("currency", "USD")
-    sym = "US$" if currency == "USD" else "¥"
-    prices = sorted(float(i["price"]) for i in items)
-    band = {"min": prices[0], "max": prices[-1], "median": prices[len(prices) // 2]}
 
     keyword = str(tool_input.get("keyword", "")).strip() or items[0]["title"][:40]
     goal = str(tool_input.get("goal", "list this product overseas"))
+    marketplace = str(tool_input.get("marketplace") or "US").upper()
 
-    # 定价与合规结论作为文案事实面（来自前序工具的真实产出，非编造）
     ctx = tool_input.get("context") or {}
     pricing = ctx.get("pricing_sandbox") or {}
     compliance = ctx.get("compliance_check") or {}
 
+    # 价格带：优先定价沙盘的已折算目标站口径（USD），其次原始商品数据点
+    priced = pricing.get("price_band") or {}
+    if priced and pricing.get("band_source", "").startswith("us_retail"):
+        band = {"min": priced.get("min"), "median": priced.get("median"),
+                "max": priced.get("max")}
+        band_currency = "USD"
+    elif priced:
+        # domestic_reference 已按现场汇率折算为 USD，可直接用于美国站
+        band = {"min": priced.get("min"), "median": priced.get("median"),
+                "max": priced.get("max")}
+        band_currency = "USD" if marketplace in ("US", "UK") else items[0].get("currency", "USD")
+    else:
+        prices = sorted(float(i["price"]) for i in items)
+        band = {"min": prices[0], "median": prices[len(prices) // 2], "max": prices[-1]}
+        band_currency = items[0].get("currency", "USD")
+
     facts = {
         "keyword": keyword,
-        "reference_price_band": {**band, "currency": currency},
+        "marketplace": marketplace,
+        "reference_price_band": {**band, "currency": band_currency},
         "item_n": len(items),
         "sample_titles": [i["title"] for i in items[:3]],
-        "positioning": pricing.get("suggestion", {}).get("positioning"),
+        "positioning": (pricing.get("suggestion") or {}).get("positioning"),
         "floor_price_usd": pricing.get("floor_price"),
         "compliance_items": [
             {"item": c.get("item"), "authority": c.get("authority")}
@@ -58,24 +90,22 @@ async def run(tool_input: dict[str, Any]) -> ToolOutcome:
         if copy:
             generated_by = "llm(基于存证事实；价格等数字以服务端回填为准)"
     if copy is None:
-        cat = keyword.split()[0].capitalize() if keyword.split() else "Product"
+        title_kw = _title_case(keyword)[:120]
         copy = {
-            "title": TEMPLATE_TITLE.format(keyword=keyword[:60], category_cap=cat),
-            "bullets": [
-                TEMPLATE_BULLET.format(band_min=band["min"], band_max=band["max"],
-                                       n=len(items), sym=sym),
-                "Median reference price {sym}{:.2f} — see pricing sandbox for the costed floor.".format(band["median"], sym=sym),
-                "Compliance checklist attached separately (authorities cited per item).",
-            ],
+            "title": f"{title_kw} — [ADD: core attribute such as size or material]",
+            "bullets": list(SKELETON_BULLETS),
             "description": (
-                f"Everyday {cat.lower()} positioned against {len(items)} live market listings "
-                f"priced {sym}{band['min']:.2f}-{sym}{band['max']:.2f}. "
-                "Costs, compliance items and sources are documented in the mission report."
+                f"{title_kw} for {marketplace} buyers. This draft was generated without "
+                "product specifications, so specification fields are marked [ADD] for the "
+                "seller to complete; market price references and compliance items come "
+                "from the mission report and are not part of the customer-facing copy."
             ),
         }
+        generated_by = "template(合规骨架；[ADD] 处需卖家补齐规格)"
 
     export = {
         "keyword": keyword,
+        "marketplace": marketplace,
         "copy": copy,
         "generated_by": generated_by,
         "facts_used": facts,
@@ -84,6 +114,6 @@ async def run(tool_input: dict[str, Any]) -> ToolOutcome:
     return ToolOutcome(
         True, "done", None,
         f"Listing 包生成（{generated_by}）：标题 + {len(copy['bullets'])} 卖点，"
-        f"事实字段全部回填自 {len(item_ids)} 个存证数据点",
+        f"价格带按 {band_currency} 口径回填，事实字段来自 {len(item_ids)} 个存证数据点",
         export,
     )

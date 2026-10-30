@@ -33,11 +33,13 @@ async def run(tool_input: dict[str, Any]) -> ToolOutcome:
 
     rate: float | None = None
     fx_id = tool_input.get("fx_id")
-    if cny_prices:
+    explicit_cost = tool_input.get("unit_cost_cny") is not None
+    # CNY 计价数据 或 显式 CNY 采购价，都必须有现场汇率——绝不内嵌经验汇率
+    if cny_prices or explicit_cost:
         if not fx_id:
             return ToolOutcome(
                 False, "error", None,
-                "商品数据为 CNY 计价但缺少 fx_id——折算必须引用现场汇率存证，拒绝内嵌汇率。")
+                "涉及 CNY 采购成本但缺少 fx_id——折算必须引用现场汇率存证，拒绝内嵌汇率。")
         fx_rec = provenance.get(int(fx_id))
         if not fx_rec or fx_rec["kind"] != "fx":
             return ToolOutcome(False, "error", None, f"fx_id {fx_id} 不在存证库（来源闸门拦截）")
@@ -86,6 +88,14 @@ async def run(tool_input: dict[str, Any]) -> ToolOutcome:
                             "in_band": band["min"] <= p <= band["max"]})
     competitive = [s for s in sensitivity if s["in_band"]]
     pick = competitive[0] if competitive else sensitivity[0]
+    if competitive:
+        positioning = (f"进价格带（对照 {band_source}），"
+                       f"净利率 {pick['margin_pct']:.0f}% 切入")
+    elif floor > band["max"]:
+        positioning = ("报价下限高于价格带上限——该品类在目标站打不出目标毛利，"
+                       "需降采购/物流成本或换品，别硬上架")
+    else:
+        positioning = ("报价下限低于价格带下限——有价格优势，可上探定价换取更高毛利")
 
     result = {
         "fx_rate": rate, "fx_provenance_id": fx_id,
@@ -102,9 +112,8 @@ async def run(tool_input: dict[str, Any]) -> ToolOutcome:
         "floor_price": round(floor, 2),
         "suggestion": {
             "price": pick["floor_price"], "margin_pct": pick["margin_pct"],
-            "positioning": (f"进价格带（对照 {band_source}），净利率 {pick['margin_pct']:.0f}% 切入"
-                            if pick["in_band"] else
-                            "报价下限低于参考价格带下限——核对采购成本或放弃该品类"),
+            "in_band": bool(competitive),
+            "positioning": positioning,
         },
         "sensitivity": sensitivity,
         "assumptions": "平台佣金/关税为可调参数；采购价与汇率来自存证数据点；每个数字可复算",

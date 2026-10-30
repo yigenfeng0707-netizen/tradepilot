@@ -30,9 +30,17 @@ function addDecision(card) {
   const box = $("decisions");
   if (box.querySelector(".empty")) box.innerHTML = "";
   const node = el("div", `card ${card.status}`);
-  node.appendChild(el("div", "head", `决策 ${card.n}：${card.decision}`));
+  const tryTag = card.attempt > 1 ? ` <span class="retry">第 ${card.attempt} 次尝试</span>` : "";
+  node.appendChild(el("div", "head", `决策 ${card.n}：${card.decision}${tryTag}`));
   node.appendChild(el("div", "reason", card.reason || ""));
   node.appendChild(el("div", "summary", card.summary || ""));
+  // 候选集：把"为什么不是它"摆出来，自主性才可审计
+  const cands = (card.candidates || []).filter((c) => c.name !== card.tool);
+  if (cands.length) {
+    const line = cands.slice(0, 4).map((c) =>
+      `${c.name}(${c.score}${c.eligible ? "" : "·不可执行"})`).join("　");
+    node.appendChild(el("div", "cands", `未选候选：${line}`));
+  }
   const meta = `状态 ${card.status}${card.gate ? " · 闸门 " + card.gate : ""} · ${card.elapsed_s}s`;
   node.appendChild(el("div", "meta", meta));
   box.appendChild(node);
@@ -98,6 +106,32 @@ function renderListing(data) {
     <ul>${(copy.bullets || []).map((b) => `<li>${String(b).replace(/</g, "&lt;")}</li>`).join("")}</ul></div>`;
 }
 
+function renderAudit(data) {
+  const box = $("audit");
+  box.className = "";
+  const cls = data.score >= 85 ? "ok" : data.score >= 70 ? "mid" : "bad";
+  const issues = (data.issues || []).slice(0, 12).map((i) => {
+    const lv = i.level === "critical" ? "必改" : i.level === "warning" ? "建议" : "提示";
+    return `<div class="issue ${i.level}"><b>[${lv}] ${i.rule}</b>
+      <span class="ev">${escapeHtml(i.evidence)}</span>
+      <div class="fix">→ ${escapeHtml(i.fix)}</div></div>`;
+  }).join("");
+  box.innerHTML = `
+    <div class="scorebar">
+      <div class="score ${cls}">${data.score}<span>/100</span></div>
+      <div class="verdict">
+        <b>${data.grade} 级 · ${data.verdict}</b>
+        <div class="note">${data.marketplace} 站 · 必改 ${data.counts.critical} / 建议 ${data.counts.warning} / 提示 ${data.counts.info}
+        · 标题 ${data.stats.title_chars}/${data.limits.title} 字符 · 卖点 ${data.stats.bullet_count}/${data.limits.bullets} 条</div>
+      </div>
+    </div>${issues || '<div class="empty">未发现规则命中</div>'}
+    <div class="note">${escapeHtml(data.basis || "")}</div>`;
+}
+
+function escapeHtml(s) {
+  return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 function handleEvent(event) {
   if (event.type === "mission_start") {
     $("engine-note").textContent = `规划引擎：${event.plan_engine === "llm" ? "LLM 规划（规则兜底）" : "规则流水线（未配置 LLM）"} · 任务 ${event.mission_id}`;
@@ -113,6 +147,20 @@ function handleEvent(event) {
     if (compliance && compliance.status === "done") renderCompliance(compliance.data);
     const listing = report.results.listing_draft;
     if (listing && listing.status === "done") renderListing(listing.data);
+    const audit = report.results.listing_audit;
+    if (audit && audit.status === "done") renderAudit(audit.data);
+    const auto = report.autonomy || {};
+    $("engine-note").textContent =
+      `执行 ${auto.steps_executed || 0} 步 · 重试 ${auto.retries || 0} 次`
+      + ` · LLM 决策 ${auto.llm_decisions || 0} 次（覆盖规则序 ${auto.llm_overrides || 0} 次）`
+      + ` · 降级 ${(auto.steps_degraded || []).join("/") || "无"}`
+      + (report.archive_path ? ` · 已存档 ${report.mission_id}` : "");
+    if (report.archive_path) {
+      $("export-links").innerHTML =
+        `<a href="/api/missions/${report.mission_id}/export?format=md" download>下载上架包 .md</a>`
+        + ` ｜ <a href="/api/missions/${report.mission_id}/export?format=json" download>原始报告 .json</a>`
+        + ` ｜ <a href="/api/missions/${report.mission_id}" target="_blank">查看存档</a>`;
+    }
     checkHealth();
     $("run").disabled = false;
   } else if (event.type === "error") {
@@ -124,14 +172,17 @@ function handleEvent(event) {
 function runMission() {
   $("run").disabled = true;
   $("decisions").innerHTML = "";
-  ["pricing", "compliance", "listing"].forEach((id) => {
+  $("export-links").innerHTML = "";
+  ["pricing", "compliance", "listing", "audit"].forEach((id) => {
     const box = $(id); box.className = "empty"; box.textContent = "待任务执行";
   });
   const payload = {
     goal: $("goal").value.trim(),
     keyword: $("keyword").value.trim(),
+    keyword_cn: $("keyword_cn").value.trim(),
     source: $("source").value,
     category: $("category").value,
+    marketplace: $("marketplace").value,
     unit_cost_cny: parseFloat($("unit_cost_cny").value) || null,
     freight_usd: parseFloat($("freight").value) || 2.5,
     duty_pct: parseFloat($("duty").value) || 7.0,

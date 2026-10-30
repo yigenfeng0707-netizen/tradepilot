@@ -1,0 +1,3 @@
+# 开发/评测依赖（运行时不装）。测试本身只用标准库 unittest，pytest 可选。
+pytest>=8.0
+ruff>=0.6

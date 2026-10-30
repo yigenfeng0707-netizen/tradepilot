@@ -19,7 +19,7 @@ from .config import CONFIG
 
 
 def available() -> bool:
-    return bool(CONFIG.llm_api_key)
+    return bool(CONFIG.llm_api_key) and not CONFIG.llm_disabled
 
 
 def _extract_json(text: str) -> dict[str, Any] | None:

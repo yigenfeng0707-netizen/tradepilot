@@ -13,7 +13,10 @@ from __future__ import annotations
 import asyncio
 import os
 import time
+import urllib.robotparser as robotparser
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -27,6 +30,44 @@ _CHALLENGE_MARKS = ("robot", "challenge", "captcha", "verify you are human")
 
 _last_hit: dict[str, float] = {}
 _lock = asyncio.Lock()
+_robots_cache: dict[str, tuple[float, robotparser.RobotFileParser | None]] = {}
+_ROBOTS_TTL_S = 3600.0
+
+
+def _origin(url: str) -> str:
+    parts = urlsplit(url)
+    return f"{parts.scheme}://{parts.netloc}"
+
+
+async def robots_allowed(url: str) -> tuple[bool, str]:
+    """robots.txt 合规闸门：返回 (是否允许, 说明)。
+
+    这是作品"只抓公开页、尊重 robots"声明的代码实现——声明必须可执行，
+    否则就是话术。404/不可达按惯例视为允许（RFC 9309）；明确 Disallow 则拒绝。
+    """
+    if not CONFIG.respect_robots:
+        return True, "robots 校验已关闭（TRADEPILOT_RESPECT_ROBOTS=0）"
+    origin = _origin(url)
+    cached = _robots_cache.get(origin)
+    now = time.monotonic()
+    if cached and now - cached[0] < _ROBOTS_TTL_S:
+        parser = cached[1]
+    else:
+        parser = None
+        try:
+            async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+                resp = await client.get(f"{origin}/robots.txt", headers={"User-Agent": UA})
+                if resp.status_code == 200:
+                    parser = robotparser.RobotFileParser()
+                    parser.parse(resp.text.splitlines())
+        except Exception:  # noqa: BLE001 — 取不到 robots 不阻断，按惯例放行
+            parser = None
+        _robots_cache[origin] = (now, parser)
+    if parser is None:
+        return True, "robots.txt 不可达，按 RFC 9309 惯例放行"
+    if parser.can_fetch(UA, url):
+        return True, "robots.txt 允许"
+    return False, f"robots.txt 禁止抓取 {url}"
 
 
 def _domain(url: str) -> str:
@@ -68,30 +109,76 @@ async def fetch_browser(url: str) -> dict[str, Any]:
 
 
 def _browser_executable() -> str | None:
-    """浏览器路径选择：魔搭云环境（/usr/bin/chromium 存在）用系统浏览器，本地用 Playwright 自带。"""
+    """浏览器路径选择：显式配置 > 容器内系统浏览器 > Playwright 自带（返回 None）。"""
+    if CONFIG.chromium_path and os.path.exists(CONFIG.chromium_path):
+        return CONFIG.chromium_path
     for path in ("/usr/bin/chromium", "/usr/bin/chromium-browser"):
         if os.path.exists(path):
             return path
     return None
 
 
-def _fetch_browser_sync(url: str) -> dict[str, Any]:
+# 浏览器复用：Playwright 同步 API 绑定创建它的线程，因此固定用单线程池，
+# 进程内只启动一次 Chromium（启动开销 ~1.5s/次，在 200s 级任务里占比很高）。
+_browser_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="tp-browser")
+_browser_state: dict[str, Any] = {"playwright": None, "browser": None}
+
+
+def _get_browser() -> Any:
     from playwright.sync_api import sync_playwright
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(
-            headless=CONFIG.browser_headless,
-            executable_path=_browser_executable(),
-            args=["--no-sandbox", "--disable-dev-shm-usage"],
-        )
-        page = browser.new_page(user_agent=UA, locale="en-US",
-                                viewport={"width": 1440, "height": 900})
+    browser = _browser_state.get("browser")
+    if browser is not None and browser.is_connected():
+        return browser
+    playwright = sync_playwright().start()
+    browser = playwright.chromium.launch(
+        headless=CONFIG.browser_headless,
+        executable_path=_browser_executable(),
+        args=["--no-sandbox", "--disable-dev-shm-usage"],
+    )
+    _browser_state["playwright"] = playwright
+    _browser_state["browser"] = browser
+    return browser
+
+
+def shutdown_browser() -> None:
+    """进程退出时释放浏览器（Cloud Run 优雅停机用）。"""
+    def _close() -> None:
         try:
-            page.goto(url, timeout=CONFIG.fetch_timeout_s * 1000, wait_until="domcontentloaded")
-            page.wait_for_timeout(3500)  # 等客户端水合
-            return {"url": page.url, "status": 200, "html": page.content()}
+            if (b := _browser_state.get("browser")) is not None:
+                b.close()
+            if (p := _browser_state.get("playwright")) is not None:
+                p.stop()
+        except Exception:  # noqa: BLE001,S110 — 停机清理失败不影响退出
+            pass
         finally:
-            browser.close()
+            _browser_state["browser"] = None
+            _browser_state["playwright"] = None
+
+    try:
+        _browser_pool.submit(_close).result(timeout=15)
+    except Exception:  # noqa: BLE001,S110
+        pass
+
+
+def _fetch_browser_sync(url: str) -> dict[str, Any]:
+    browser = _get_browser()
+    context = browser.new_context(user_agent=UA, locale="en-US",
+                                  viewport={"width": 1440, "height": 900})
+    page = context.new_page()
+    try:
+        page.goto(url, timeout=CONFIG.fetch_timeout_s * 1000, wait_until="domcontentloaded")
+        page.wait_for_timeout(3500)  # 等客户端水合
+        return {"url": page.url, "status": 200, "html": page.content()}
+    finally:
+        context.close()  # 只回收上下文，浏览器进程复用
+
+
+async def fetch_browser(url: str) -> dict[str, Any]:
+    """强路径：Playwright 无头浏览器（固定单线程池，浏览器进程复用）。"""
+    await _throttle(_domain(url))
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(_browser_pool, _fetch_browser_sync, url)
 
 
 async def fetch(url: str) -> dict[str, Any]:
