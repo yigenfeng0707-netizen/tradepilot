@@ -286,7 +286,8 @@ async def run(tool_input: dict[str, Any]) -> ToolOutcome:
         category=str(tool_input.get("category") or ""),
         brand=str(tool_input.get("brand") or ""),
         brand_blocklist=list(tool_input.get("brand_blocklist") or []),
-        search_terms=str(tool_input.get("search_terms") or ""),
+        # 关键词层产出的 Search Terms 会随文案包带下来，优先用它审计字节数
+        search_terms=str(tool_input.get("search_terms") or copy.get("search_terms") or ""),
         generated_by=str(tool_input.get("generated_by") or ""),
     )
     c = result["counts"]

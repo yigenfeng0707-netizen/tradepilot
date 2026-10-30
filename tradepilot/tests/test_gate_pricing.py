@@ -64,15 +64,35 @@ class TestPricingMath(unittest.TestCase):
         out = asyncio.run(pricing.run({"item_ids": ids, "fx_id": fx_id}))
         self.assertEqual(out.status, "done", out.summary)
         data = out.data
-        # 采购价取中位数 100 CNY，按现场汇率 7.0 折美元
-        self.assertAlmostEqual(data["unit_cost_usd"], 100 / 7, places=2)
+        # 采购价 = 零售中位数 100 × 成本率 0.35 = ¥35，按现场汇率 7.0 折美元
+        self.assertAlmostEqual(data["unit_cost_usd"], 35 / 7, places=2)
         # 到岸 = 采购 + 头程 2.5 + 尾程 5.5 + 关税 7%
-        expected_landed = 100 / 7 * 1.07 + 8.0
+        expected_landed = 35 / 7 * 1.07 + 8.0
         self.assertAlmostEqual(data["landed_cost"], expected_landed, places=2)
         # 报价下限 = 到岸 / (1 - 佣金 15% - 目标净利 20%)
         self.assertAlmostEqual(data["floor_price"], expected_landed / 0.65, places=1)
         self.assertEqual(len(data["sensitivity"]), 5)
         self.assertEqual(data["fx_provenance_id"], fx_id)
+        self.assertIn("成本率为参数假设", data["cost_basis_note"])
+
+    def test_cost_ratio_is_applied_and_adjustable(self) -> None:
+        ids = _seed_items([100.0, 100.0, 100.0])
+        fx_id = _seed_fx(7.0)
+        low = asyncio.run(pricing.run({"item_ids": ids, "fx_id": fx_id,
+                                       "cost_ratio": 0.2})).data
+        high = asyncio.run(pricing.run({"item_ids": ids, "fx_id": fx_id,
+                                        "cost_ratio": 0.5})).data
+        self.assertAlmostEqual(low["cost_basis_cny"], 20.0, places=2)
+        self.assertAlmostEqual(high["cost_basis_cny"], 50.0, places=2)
+        self.assertLess(low["floor_price"], high["floor_price"])
+
+    def test_explicit_unit_cost_wins_over_ratio(self) -> None:
+        ids = _seed_items([100.0, 100.0, 100.0])
+        fx_id = _seed_fx(7.0)
+        data = asyncio.run(pricing.run({"item_ids": ids, "fx_id": fx_id,
+                                        "unit_cost_cny": 42.0, "cost_ratio": 0.9})).data
+        self.assertAlmostEqual(data["cost_basis_cny"], 42.0, places=2)
+        self.assertIn("参数指定采购价", data["cost_basis_note"])
 
     def test_usd_items_with_cny_cost_require_fx(self) -> None:
         ids = _seed_items([20.0, 30.0, 40.0], currency="USD")

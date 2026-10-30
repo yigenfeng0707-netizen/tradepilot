@@ -38,7 +38,8 @@ class MissionIn(BaseModel):
     source: str = "dangdang"         # 数据源：dangdang（CNY）/ walmart（USD，受 robots 约束）
     category: str                    # 合规知识卡品类：pet/home/electronics
     marketplace: str = "US"          # 目标站点：US/UK/DE/JP（影响文案字符上限）
-    unit_cost_cny: float | None = None   # 采购价（缺省取扫描中位数）
+    unit_cost_cny: float | None = None   # 采购价（缺省按零售参考价 × cost_ratio 估算）
+    cost_ratio: float = 0.35             # 成本率假设（零售价 → 采购成本的折算系数）
     freight_usd: float = 2.5
     duty_pct: float = 7.0
     last_mile_usd: float = 5.5

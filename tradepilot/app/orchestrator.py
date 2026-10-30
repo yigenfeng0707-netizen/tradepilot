@@ -20,7 +20,7 @@ from typing import Any, AsyncIterator
 from . import llm, planner
 from .config import CONFIG
 from .tools import competitor as market_scan
-from .tools import compliance, executor, fx, listing, listing_audit, pricing
+from .tools import compliance, executor, fx, keywords, listing, listing_audit, pricing
 
 # 输入接线表：工具入参 ← 前序步骤产出（同时也是 provenance 的流向）
 # 语法：a.b 取字段；a.b[].c 取列表逐项字段；@ctx:step1,step2 打包前序结论为上下文
@@ -29,8 +29,12 @@ WIRING: dict[str, dict[str, str]] = {
         "item_ids": "market_scan.items[].provenance_id",
         "fx_id": "fx_rate.provenance_id",
     },
+    "keyword_plan": {
+        "item_ids": "market_scan.items[].provenance_id",
+    },
     "listing_draft": {
         "item_ids": "market_scan.items[].provenance_id",
+        "keyword_plan": "keyword_plan",
         "context": "@ctx:pricing_sandbox,compliance_check",
     },
     "listing_audit": {
@@ -49,6 +53,7 @@ def build_registry() -> executor.Registry:
             "fx_rate": fx.run,
             "pricing_sandbox": pricing.run,
             "compliance_check": compliance.run,
+            "keyword_plan": keywords.run,
             "listing_draft": listing.run,
             "listing_audit": listing_audit.run,
         }[spec.name]

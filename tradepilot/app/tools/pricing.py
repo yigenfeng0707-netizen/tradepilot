@@ -51,15 +51,21 @@ async def run(tool_input: dict[str, Any]) -> ToolOutcome:
     commission_pct = float(tool_input.get("commission_pct", 15.0))
     margin_pct = float(tool_input.get("target_margin_pct", 20.0))
 
-    # 采购价：显式参数 > 国内参考价中位数（CNY × 现场汇率）
+    # 采购价：显式参数 > 国内零售参考价中位数 × 成本率（参数假设）
+    # 注意：竞品零售价里含对手毛利，直接当采购成本会系统性高估成本、
+    # 得出"永远打不出毛利"的错误结论。因此用可调成本率折算，并明确标注是假设。
     unit_cost_cny = tool_input.get("unit_cost_cny")
-    cost_basis_note = "参数指定采购价"
+    cost_ratio = float(tool_input.get("cost_ratio", 0.35))
+    cost_basis_note = "参数指定采购价（事实）"
     if unit_cost_cny is None:
         if not cny_prices:
             unit_cost_cny, cost_basis_note = 0.0, "未提供采购价且无 CNY 数据点"
         else:
-            unit_cost_cny = sorted(cny_prices)[len(cny_prices) // 2]
-            cost_basis_note = f"取 {len(cny_prices)} 条国内零售参考价中位数（¥{unit_cost_cny:.2f}）"
+            median_cny = sorted(cny_prices)[len(cny_prices) // 2]
+            unit_cost_cny = median_cny * cost_ratio
+            cost_basis_note = (f"零售参考价中位数 ¥{median_cny:.2f} × 成本率 "
+                               f"{cost_ratio:.0%} = ¥{unit_cost_cny:.2f}"
+                               f"（成本率为参数假设，非事实；建议用真实采购价覆盖）")
     unit_cost_cny = float(unit_cost_cny)
     # rate = 每美元兑 CNY 数（USD/CNY），CNY→USD 折算必须除以汇率
     unit_cost_usd = unit_cost_cny / rate if rate else 0.0
@@ -100,6 +106,7 @@ async def run(tool_input: dict[str, Any]) -> ToolOutcome:
     result = {
         "fx_rate": rate, "fx_provenance_id": fx_id,
         "cost_basis_cny": round(unit_cost_cny, 2), "cost_basis_note": cost_basis_note,
+        "cost_ratio": cost_ratio,
         "unit_cost_usd": round(unit_cost_usd, 2),
         "landed_cost": round(landed, 2),
         "cost_breakdown": {

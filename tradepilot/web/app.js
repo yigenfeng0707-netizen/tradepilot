@@ -97,6 +97,26 @@ function renderCompliance(data) {
     }).join("");
 }
 
+function renderKeywords(data) {
+  const box = $("keywords");
+  box.className = "";
+  const b = data.buckets || {};
+  const group = (label, arr) => (arr && arr.length)
+    ? `<div class="kwgroup"><span class="kwlabel">${label}</span>${
+        arr.map((x) => `<span class="kw" title="出现 ${x.count} 次 · 覆盖率 ${(x.coverage * 100).toFixed(0)}% · 证据：${escapeHtml(x.evidence)}">${
+          escapeHtml((x.english || [])[0] || x.observed)}<i>${x.count}</i></span>`).join("")}</div>`
+    : "";
+  const proxy = data.competition_proxy || {};
+  box.innerHTML =
+    `<div class="note">样本 ${proxy.sample_size} 条真实竞品标题 · 核心词覆盖率 ${((proxy.core_term_coverage || 0) * 100).toFixed(0)}%`
+    + ` · 标题均长 ${proxy.avg_title_len} 字 · 观测词 ${proxy.distinct_terms} 个（未接入搜索量数据源，不编造搜索量）</div>`
+    + group("核心", b.core) + group("属性", b.attribute)
+    + group("场景", b.scenario) + group("人群", b.audience)
+    + group("相关品类", b.related)
+    + `<div class="stbox"><b>后台 Search Terms</b>（${data.search_terms_bytes}/250 字节）
+        <div class="sttext">${escapeHtml(data.search_terms || "（无可用词）")}</div></div>`;
+}
+
 function renderListing(data) {
   const box = $("listing");
   box.className = "";
@@ -145,6 +165,8 @@ function handleEvent(event) {
     if (pricing && pricing.status === "done") renderPricing(pricing.data);
     const compliance = report.results.compliance_check;
     if (compliance && compliance.status === "done") renderCompliance(compliance.data);
+    const kw = report.results.keyword_plan;
+    if (kw && kw.status === "done") renderKeywords(kw.data);
     const listing = report.results.listing_draft;
     if (listing && listing.status === "done") renderListing(listing.data);
     const audit = report.results.listing_audit;
@@ -173,7 +195,7 @@ function runMission() {
   $("run").disabled = true;
   $("decisions").innerHTML = "";
   $("export-links").innerHTML = "";
-  ["pricing", "compliance", "listing", "audit"].forEach((id) => {
+  ["pricing", "compliance", "keywords", "listing", "audit"].forEach((id) => {
     const box = $(id); box.className = "empty"; box.textContent = "待任务执行";
   });
   const payload = {

@@ -31,8 +31,15 @@ SKELETON_BULLETS = [
 ]
 
 
-def _title_case(keyword: str) -> str:
-    return " ".join(w.capitalize() if len(w) > 2 else w for w in keyword.split())
+def _dedupe_words(keyword: str) -> str:
+    """关键词去重（保留原序），避免 "dog bed dog bed" 这类重复。"""
+    seen: set[str] = set()
+    out = []
+    for w in keyword.split():
+        if w.lower() not in seen:
+            seen.add(w.lower())
+            out.append(w)
+    return " ".join(out)
 
 
 async def run(tool_input: dict[str, Any]) -> ToolOutcome:
@@ -51,6 +58,14 @@ async def run(tool_input: dict[str, Any]) -> ToolOutcome:
     ctx = tool_input.get("context") or {}
     pricing = ctx.get("pricing_sandbox") or {}
     compliance = ctx.get("compliance_check") or {}
+    kplan = tool_input.get("keyword_plan") or {}
+
+    # 关键词层：核心词用于标题开头（A9 前 80 字符权重最高），Search Terms 直接落包
+    core_terms = (kplan.get("buckets") or {}).get("core") or []
+    core_en = ""
+    if core_terms:
+        core_en = (core_terms[0].get("english") or [""])[0]
+    search_terms = str(kplan.get("search_terms") or "")
 
     # 价格带：优先定价沙盘的已折算目标站口径（USD），其次原始商品数据点
     priced = pricing.get("price_band") or {}
@@ -76,6 +91,7 @@ async def run(tool_input: dict[str, Any]) -> ToolOutcome:
         "sample_titles": [i["title"] for i in items[:3]],
         "positioning": (pricing.get("suggestion") or {}).get("positioning"),
         "floor_price_usd": pricing.get("floor_price"),
+        "core_keyword_en": core_en or None,
         "compliance_items": [
             {"item": c.get("item"), "authority": c.get("authority")}
             for c in compliance.get("checks", [])
@@ -90,18 +106,22 @@ async def run(tool_input: dict[str, Any]) -> ToolOutcome:
         if copy:
             generated_by = "llm(基于存证事实；价格等数字以服务端回填为准)"
     if copy is None:
-        title_kw = _title_case(keyword)[:120]
+        # 标题以关键词层给出的核心英文词开头（A9：前 80 字符权重最高），
+        # 具体规格仍留占位符——观测到的竞品属性词不能当成本品参数
+        head = _dedupe_words(core_en or keyword).title()[:120]
         copy = {
-            "title": f"{title_kw} — [ADD: core attribute such as size or material]",
+            "title": f"{head} — [ADD: core attribute such as size or material]",
             "bullets": list(SKELETON_BULLETS),
             "description": (
-                f"{title_kw} for {marketplace} buyers. This draft was generated without "
+                f"{head} for {marketplace} buyers. This draft was generated without "
                 "product specifications, so specification fields are marked [ADD] for the "
                 "seller to complete; market price references and compliance items come "
                 "from the mission report and are not part of the customer-facing copy."
             ),
         }
         generated_by = "template(合规骨架；[ADD] 处需卖家补齐规格)"
+    if search_terms:
+        copy["search_terms"] = search_terms
 
     export = {
         "keyword": keyword,
@@ -109,11 +129,20 @@ async def run(tool_input: dict[str, Any]) -> ToolOutcome:
         "copy": copy,
         "generated_by": generated_by,
         "facts_used": facts,
+        "keyword_plan": {
+            "core": [c.get("observed") for c in core_terms],
+            "attribute_n": len((kplan.get("buckets") or {}).get("attribute") or []),
+            "scenario_n": len((kplan.get("buckets") or {}).get("scenario") or []),
+            "search_terms_bytes": kplan.get("search_terms_bytes"),
+            "competition_proxy": kplan.get("competition_proxy"),
+        } if kplan else None,
         "provenance_ids": item_ids,
     }
     return ToolOutcome(
         True, "done", None,
         f"Listing 包生成（{generated_by}）：标题 + {len(copy['bullets'])} 卖点，"
-        f"价格带按 {band_currency} 口径回填，事实字段来自 {len(item_ids)} 个存证数据点",
+        f"价格带按 {band_currency} 口径回填，"
+        + (f"Search Terms {kplan.get('search_terms_bytes', 0)} 字节，" if search_terms else "")
+        + f"事实字段来自 {len(item_ids)} 个存证数据点",
         export,
     )

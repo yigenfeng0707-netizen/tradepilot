@@ -138,7 +138,34 @@ def export_markdown(report: dict[str, Any]) -> str:
     else:
         lines.append("（未生成合规清单）")
 
-    lines += ["", "## 四、Listing 文案", ""]
+    lines += ["", "## 四、关键词层", ""]
+    kplan = (results.get("keyword_plan") or {}).get("data") or {}
+    if kplan:
+        buckets = kplan.get("buckets") or {}
+        for label, key in (("核心", "core"), ("属性", "attribute"), ("场景", "scenario"),
+                           ("人群", "audience"), ("相关品类", "related")):
+            items_ = buckets.get(key) or []
+            if items_:
+                terms = "、".join(
+                    f"{(e.get('english') or [''])[0] or e.get('observed')}（{e.get('count')} 次）"
+                    for e in items_[:8])
+                lines.append(f"- **{label}**：{terms}")
+        proxy = kplan.get("competition_proxy") or {}
+        lines += [
+            "",
+            f"样本 {proxy.get('sample_size')} 条真实竞品标题，核心词覆盖率 "
+            f"{round((proxy.get('core_term_coverage') or 0) * 100)}%，"
+            f"标题均长 {proxy.get('avg_title_len')} 字。",
+            f"**后台 Search Terms**（{kplan.get('search_terms_bytes')}/250 字节）："
+            f"`{kplan.get('search_terms')}`",
+            "",
+            "> 词表来自真实竞品标题的观测计数（附证据可回访），"
+            "不含搜索量/竞争度评分——未接入相应数据源，编造该指标等于假数据。",
+        ]
+    else:
+        lines.append("（未执行关键词分析）")
+
+    lines += ["", "## 五、Listing 文案", ""]
     if copy:
         lines += [f"**Title**（{len(str(copy.get('title', '')))} 字符）", "",
                   str(copy.get("title", "")), "", "**Bullets**", ""]
@@ -150,7 +177,7 @@ def export_markdown(report: dict[str, Any]) -> str:
     else:
         lines.append("（未生成文案）")
 
-    lines += ["", "## 五、文案合规审计", ""]
+    lines += ["", "## 六、文案合规审计", ""]
     if audit:
         counts = audit.get("counts") or {}
         lines += [
@@ -166,7 +193,7 @@ def export_markdown(report: dict[str, Any]) -> str:
     else:
         lines.append("（未执行审计）")
 
-    lines += ["", "## 六、决策实录", ""]
+    lines += ["", "## 七、决策实录", ""]
     for d in report.get("decisions") or []:
         lines.append(f"{d.get('n')}. `/{d.get('tool')}`（第 {d.get('attempt')} 次）"
                      f" → {d.get('status')}：{d.get('summary')}")

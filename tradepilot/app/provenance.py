@@ -13,8 +13,9 @@ import hashlib
 import json
 import sqlite3
 import threading
+from contextlib import contextmanager
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Iterator
 
 from .config import CONFIG
 
@@ -40,6 +41,17 @@ def _conn() -> sqlite3.Connection:
     return conn
 
 
+@contextmanager
+def _db() -> Iterator[sqlite3.Connection]:
+    """连接即用即关：`with conn` 只提交事务，不关闭句柄，长跑会漏文件描述符。"""
+    conn = _conn()
+    try:
+        with conn:          # 事务：异常自动回滚
+            yield conn
+    finally:
+        conn.close()
+
+
 def content_hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
@@ -47,13 +59,12 @@ def content_hash(text: str) -> str:
 def record(kind: str, url: str, payload: dict[str, Any], raw_text: str | None = None) -> int:
     """登记一条真实抓取的数据点，返回 provenance_id。"""
     digest = content_hash(raw_text or json.dumps(payload, ensure_ascii=False, sort_keys=True))
-    with _LOCK:
-        with _conn() as conn:
-            cur = conn.execute(
-                "INSERT INTO provenance (kind, url, fetched_at, content_hash, payload) VALUES (?,?,?,?,?)",
-                (kind, url, _now(), digest, json.dumps(payload, ensure_ascii=False)),
-            )
-            return int(cur.lastrowid)
+    with _LOCK, _db() as conn:
+        cur = conn.execute(
+            "INSERT INTO provenance (kind, url, fetched_at, content_hash, payload) VALUES (?,?,?,?,?)",
+            (kind, url, _now(), digest, json.dumps(payload, ensure_ascii=False)),
+        )
+        return int(cur.lastrowid)
 
 
 def exists(ids: list[int]) -> set[int]:
@@ -61,20 +72,18 @@ def exists(ids: list[int]) -> set[int]:
     if not ids:
         return set()
     marks = ",".join("?" for _ in ids)
-    with _LOCK:
-        with _conn() as conn:
-            rows = conn.execute(
-                f"SELECT id FROM provenance WHERE id IN ({marks})", [int(i) for i in ids]
-            ).fetchall()
+    with _LOCK, _db() as conn:
+        rows = conn.execute(
+            f"SELECT id FROM provenance WHERE id IN ({marks})", [int(i) for i in ids]
+        ).fetchall()
     return {int(r[0]) for r in rows}
 
 
 def get(pid: int) -> dict[str, Any] | None:
-    with _LOCK:
-        with _conn() as conn:
-            row = conn.execute(
-                "SELECT kind, url, fetched_at, payload FROM provenance WHERE id=?", (pid,)
-            ).fetchone()
+    with _LOCK, _db() as conn:
+        row = conn.execute(
+            "SELECT kind, url, fetched_at, payload FROM provenance WHERE id=?", (pid,)
+        ).fetchone()
     if row is None:
         return None
     return {
@@ -87,8 +96,7 @@ def get(pid: int) -> dict[str, Any] | None:
 
 
 def stats() -> dict[str, Any]:
-    with _LOCK:
-        with _conn() as conn:
-            total = conn.execute("SELECT COUNT(*) FROM provenance").fetchone()[0]
-            urls = conn.execute("SELECT COUNT(DISTINCT url) FROM provenance").fetchone()[0]
+    with _LOCK, _db() as conn:
+        total = conn.execute("SELECT COUNT(*) FROM provenance").fetchone()[0]
+        urls = conn.execute("SELECT COUNT(DISTINCT url) FROM provenance").fetchone()[0]
     return {"total": total, "distinct_sources": urls}
