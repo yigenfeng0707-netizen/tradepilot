@@ -47,6 +47,12 @@ class Candidate:
 # 依赖图：pricing 需要真实价格带；listing 需要真实商品卡（软依赖定价/合规结论做事实面）；
 # audit 需要已成稿的文案。fx 独立（CNY 数据折算时才必需，由状态动态判定）。
 STEPS: tuple[StepSpec, ...] = (
+    # 选品雷达：只有目标点名"选品/赛道/机会"时才抢位（base=15 保证普通任务仍以
+    # market_scan 起步——它每个词都要一次真实抓取，不能被默认触发拖慢整条链路）
+    StepSpec("opportunity_scan",
+             "多关键词真实扇描，用本批真实样本给候选品类排出调研先后（口径=样本观测，不是需求量）",
+             base=15, max_attempts=1,
+             goal_hints=("选品", "机会品类", "品类机会", "赛道", "雷达", "多品类")),
     StepSpec("market_scan", "真实抓取目标品类的市场商品与价格（多源适配，全部带来源存证）",
              base=10, max_attempts=3, alt_source="walmart",
              goal_hints=("市场", "竞品", "选品", "调研", "竞争")),

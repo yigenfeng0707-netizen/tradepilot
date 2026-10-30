@@ -47,6 +47,9 @@ class MissionIn(BaseModel):
     target_margin_pct: float = 20.0
     search_terms: str = ""           # 后台 Search Terms（可选，审计会检查）
     brand_blocklist: list[str] = []  # 竞品品牌词（侵权审计用）
+    keywords: str = ""               # 选品雷达候选词（逗号分隔）。留空=用内置假设词，
+                                     # 内置词是待验证假设、不是热销榜，来源标记会随产物输出
+    max_keywords: int = 5            # 雷达最多扫几个词：每个词都是一次真实抓取，直接决定耗时
 
 
 @app.get("/api/health")
@@ -64,6 +67,26 @@ async def tools() -> dict[str, Any]:
     return {"tools": _registry.spec()}
 
 
+@app.get("/api/provenance/{pid}")
+async def provenance_detail(pid: int) -> JSONResponse:
+    """溯源详情：前端「存证#N」点开的就是它。
+
+    返回 URL + 抓取时间戳 + 内容 hash + 原始字段——作品的差异化承诺是
+    "页面上每个数字都能溯源"，没有这个接口那句承诺就只能靠截图像素证明。
+    """
+    record = provenance.get(pid)
+    if record is None:
+        raise HTTPException(status_code=404, detail=f"存证 #{pid} 不存在")
+    return JSONResponse(record)
+
+
+@app.get("/api/provenance")
+async def provenance_list(kind: str = "", limit: int = 50) -> dict[str, Any]:
+    """存证清单（可按 kind 过滤）：抽检与答辩现场随机回访用。"""
+    return {"stats": provenance.stats(), "items": provenance.list_records(
+        kind=kind, limit=max(1, min(limit, 200)))}
+
+
 @app.get("/api/missions")
 async def missions(limit: int = 20) -> dict[str, Any]:
     return {"missions": store.list_missions(limit=max(1, min(limit, 100)))}
@@ -79,7 +102,7 @@ async def mission_detail(mission_id: str) -> JSONResponse:
 
 @app.get("/api/missions/{mission_id}/export")
 async def mission_export(mission_id: str, format: str = "md") -> Any:
-    """导出上架包：format=json（机器可读原始报告）/ md（可交付上架包）。"""
+    """导出上架包：format=json（机器可读原始报告）/ md（可交付上架包）/ docx（Word 版）。"""
     report = store.get_mission(mission_id)
     if report is None:
         raise HTTPException(status_code=404, detail="任务不存在或 id 非法")
@@ -91,7 +114,18 @@ async def mission_export(mission_id: str, format: str = "md") -> Any:
         return PlainTextResponse(text, headers={
             "Content-Disposition": f'attachment; filename="{mission_id}.md"'},
             media_type="text/markdown; charset=utf-8")
-    raise HTTPException(status_code=400, detail="format 仅支持 json / md")
+    if format == "docx":
+        # 局部导入：导出函数之外的行不属本模块改动范围，避免动共享的 import 区
+        from fastapi.responses import Response
+
+        from .export_docx import build_docx
+
+        payload = build_docx(report)  # 零依赖：zipfile 拼 WordprocessingML
+        return Response(content=payload, headers={
+            "Content-Disposition": f'attachment; filename="{mission_id}.docx"'},
+            media_type="application/vnd.openxmlformats-officedocument"
+                       ".wordprocessingml.document")
+    raise HTTPException(status_code=400, detail="format 仅支持 json / md / docx")
 
 
 @app.get("/")

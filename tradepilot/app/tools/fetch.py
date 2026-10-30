@@ -25,8 +25,14 @@ from ..config import CONFIG
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
 
-BROWSER_FIRST = ("walmart.com", "temu.com", "aliexpress.com")
-_CHALLENGE_MARKS = ("robot", "challenge", "captcha", "verify you are human")
+BROWSER_FIRST = ("walmart.com", "temu.com", "aliexpress.com", "newegg.com")
+# 拦截页特征：只认具体话术，不能再放裸 "robot"——正常商品页的 charset 区就有
+# <meta name="robots">，会把 Newegg 这种 1.5MB 真实结果页误判成拦截页。
+_CHALLENGE_MARKS = ("robot or human", "verify you are human", "are you a robot",
+                    "captcha", "just a moment", "checking your browser",
+                    "unusual traffic", "access denied")
+# 商品页信号：命中即认为拿到的是一屏真实结果，不是挑战页
+_PRODUCT_SIGNALS = ("price", "product", "itemprop", "sku")
 
 _last_hit: dict[str, float] = {}
 _lock = asyncio.Lock()
@@ -76,9 +82,11 @@ def _domain(url: str) -> str:
 
 def _looks_blocked(html: str) -> bool:
     low = html[:20000].lower()
-    if len(html) < 4000 and len(low) < 4000:
+    if len(html) < 4000:
         return True
-    return any(mark in low for mark in _CHALLENGE_MARKS) and "price" not in low
+    if any(sig in low for sig in _PRODUCT_SIGNALS):  # 有真实商品字段就不是挑战页
+        return False
+    return any(mark in low for mark in _CHALLENGE_MARKS)
 
 
 async def _throttle(domain: str) -> None:
@@ -99,13 +107,6 @@ async def fetch_http(url: str) -> dict[str, Any]:
     ) as client:
         resp = await client.get(url)
         return {"url": str(resp.url), "status": resp.status_code, "html": resp.text}
-
-
-async def fetch_browser(url: str) -> dict[str, Any]:
-    """强路径：Playwright 无头浏览器（线程池中跑同步 API）。"""
-    await _throttle(_domain(url))
-    loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(None, _fetch_browser_sync, url)
 
 
 def _browser_executable() -> str | None:

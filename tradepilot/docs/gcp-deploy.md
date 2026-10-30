@@ -67,7 +67,7 @@ gcloud run deploy $SERVICE \
 
 - `--memory 2Gi`：Chromium 单页约 300–600MB，1Gi 在并发下会 OOM。
 - `--concurrency 4`：抓取被 `per_host_min_interval_s` 与浏览器单线程池串行化，调高只会排队。
-- `--timeout 600`：LLM 模式下单步可能 60–90s，五步链路需要余量。
+- `--timeout 600`：LLM 模式下单步可能 60–90s，七步链路需要余量。
 - `--min-instances 1`：避免演示时冷启动把第一个请求拖到 8s+（有成本，正式上线可设 0）。
 - `--max-instances 3`：见第 5 节，SQLite 不适合横向扩太多。
 
@@ -93,7 +93,8 @@ Cloud Run 的 `/tmp` 是**实例内存盘**，实例回收即丢失。存证库�
 ```bash
 URL=$(gcloud run services describe $SERVICE --region $REGION --format='value(status.url)')
 curl -s $URL/api/health                     # 期望 {"status":"ok", ...}
-curl -s $URL/api/tools                      # 期望 6 个工具
+curl -s $URL/api/tools                      # 期望 8 个工具
+curl -s $URL/api/provenance                 # 期望 200（404 = 线上还是旧镜像）
 curl -s $URL/api/missions                   # 期望 {"missions":[]} 或历史列表
 # 跑一次真实任务（WebSocket，需要 wscat 或浏览器）
 open $URL                                  # 点"下达任务"，观察 6 张决策卡
@@ -102,7 +103,7 @@ curl -s "$URL/api/missions/<mission_id>/export?format=md" | head -20
 
 - [ ] 决策卡出现"未选候选"一行（自主性可审计的证据）
 - [ ] 审计面板给出分数与逐条修复建议
-- [ ] 导出 `.md` 能下载且含六节内容
+- [ ] 导出 `.md` 能下载且含七节内容（真实市场数据 / 定价沙盘 / 合规体检 / 关键词层 / Listing 文案 / 文案合规审计 / 决策实录）
 - [ ] 容器日志无 `Executable doesn't exist`（Chromium 路径错误）
 
 ## 8. 回滚

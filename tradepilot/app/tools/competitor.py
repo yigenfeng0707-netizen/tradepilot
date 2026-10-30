@@ -51,11 +51,22 @@ async def run(tool_input: dict[str, Any]) -> ToolOutcome:
             f"（原始 {len(raw_items)} 条，剔除书籍/跨品类/重复 {filtered} 条）——"
             "样本不足 3 条，宁可报错也不凑数。建议改用该站惯用的中文检索词（keyword_cn）。",
             {"source": source, "keyword_used": result["keyword_used"]})
+    # 搜索结果页本身也落一条存证（kind=page）：证明"这一屏结果是真实抓到的"
+    search_url = result["source_url"]
+    page_pid = provenance.record("page", search_url, {
+        "source": source, "keyword_used": result["keyword_used"],
+        "channel": result["channel"], "currency": result["currency"],
+        "raw_count": len(raw_items), "kept_count": len(items),
+        "filtered_noise": filtered})
     for item in items:
         item["currency"] = result["currency"]
         item["source"] = source
+        # 存证 URL 必须是**单品页**：评委点存证号要落在这件商品上，而不是一屏 20
+        # 个结果的搜索页（上一版记的是搜索页，回访根本无法定位到该商品）。
+        item["search_url"] = search_url
+        item["scan_provenance_id"] = page_pid
         item["provenance_id"] = provenance.record(
-            "item", result["source_url"], item,
+            "item", str(item.get("source_url") or search_url), item,
             raw_text=json.dumps(item, sort_keys=True),
         )
     prices = sorted(i["price"] for i in items)
@@ -68,5 +79,7 @@ async def run(tool_input: dict[str, Any]) -> ToolOutcome:
         {"keyword": keyword, "keyword_used": result["keyword_used"], "source": source,
          "source_url": result["source_url"], "channel": result["channel"],
          "currency": result["currency"], "robots": result.get("robots"),
+         "scan_provenance_id": page_pid,
+         "item_url_recorded": sum(1 for i in items if i.get("source_url") != search_url),
          "filtered_noise": filtered, "items": items, "price_band": band},
     )

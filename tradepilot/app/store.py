@@ -131,10 +131,21 @@ def export_markdown(report: dict[str, Any]) -> str:
     lines += ["", "## 三、合规体检", ""]
     checks = compliance.get("checks") or []
     if checks:
+        marks = {"clause_matched": "✅ 已定位官方条款原文",
+                 "page_only": "⚠ 已取得官方正文但未定位到条款原文",
+                 "blocked": "⛔ HTTP 200 但内容不可核验（拦截页/SPA 空壳/软 404）",
+                 "offline": "⚠ 网络不可达（引用标注）"}
         for c in checks:
-            mark = "✅ 现场验证" if c.get("live") else "⚠️ 引用标注（来源不可达）"
+            mark = marks.get(str(c.get("verification")), "⚠️ 未验证")
+            page = c.get("page_url") or c.get("source_url")
+            extra = f"（{c.get('block_reason')}）" if c.get("block_reason") else ""
             lines.append(f"- {mark} [{c.get('kind')}] {c.get('item')} — {c.get('authority')}"
-                         f"（{c.get('source_url')}）")
+                         f"（{page}）{extra}")
+            if c.get("excerpt"):
+                lines.append(f"  - 条款原文片段：「{str(c['excerpt'])[:200]}」"
+                             f"（命中词 {'/'.join(c.get('matched_terms') or [])} · "
+                             f"存证#{c.get('provenance_id')}）")
+        lines += ["", f"> {compliance.get('basis', '')}"]
     else:
         lines.append("（未生成合规清单）")
 

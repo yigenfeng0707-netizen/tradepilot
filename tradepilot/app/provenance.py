@@ -80,9 +80,11 @@ def exists(ids: list[int]) -> set[int]:
 
 
 def get(pid: int) -> dict[str, Any] | None:
+    """按 id 回查一条存证（含正文 hash）——前端"点击溯源"与事后抽检的唯一数据面。"""
     with _LOCK, _db() as conn:
         row = conn.execute(
-            "SELECT kind, url, fetched_at, payload FROM provenance WHERE id=?", (pid,)
+            "SELECT kind, url, fetched_at, content_hash, payload FROM provenance WHERE id=?",
+            (pid,)
         ).fetchone()
     if row is None:
         return None
@@ -91,8 +93,24 @@ def get(pid: int) -> dict[str, Any] | None:
         "kind": row[0],
         "url": row[1],
         "fetched_at": row[2],
-        "payload": json.loads(row[3]),
+        "content_hash": row[3],
+        "payload": json.loads(row[4]),
     }
+
+
+def list_records(kind: str = "", limit: int = 50) -> list[dict[str, Any]]:
+    """按 id 倒序列出存证——抽检回访面：随机抽样后逐条点开原页核对。"""
+    sql = "SELECT id, kind, url, fetched_at, content_hash, payload FROM provenance"
+    args: list[Any] = []
+    if kind:
+        sql += " WHERE kind=?"
+        args.append(kind)
+    sql += " ORDER BY id DESC LIMIT ?"
+    args.append(int(limit))
+    with _LOCK, _db() as conn:
+        rows = conn.execute(sql, args).fetchall()
+    return [{"id": r[0], "kind": r[1], "url": r[2], "fetched_at": r[3],
+             "content_hash": r[4], "payload": json.loads(r[5])} for r in rows]
 
 
 def stats() -> dict[str, Any]:

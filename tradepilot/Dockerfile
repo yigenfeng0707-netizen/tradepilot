@@ -35,4 +35,9 @@ RUN mkdir -p /tmp/tradepilot/missions
 
 EXPOSE 8080
 
+# 健康检查用 python 标准库，不依赖 curl/wget（基础镜像里没装，装了也只是多一层风险）。
+# 打的是 /api/health：它同时回报存证条数与数据目录，服务活着但存储没挂上的情况一并覆盖。
+HEALTHCHECK --interval=30s --timeout=6s --start-period=25s --retries=3 \
+  CMD python -c "import os,sys,urllib.request as u; p=os.environ.get('PORT','8080'); sys.exit(0 if u.urlopen('http://127.0.0.1:'+p+'/api/health', timeout=5).status==200 else 1)"
+
 CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080} --proxy-headers --forwarded-allow-ips=*"]

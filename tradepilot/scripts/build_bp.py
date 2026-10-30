@@ -1,43 +1,108 @@
 # -*- coding: utf-8 -*-
-"""TradePilot BP PDF 生成脚本（按通用 BP 评分维度组织，无本地截图依赖）。"""
+"""TradePilot BP PDF 生成脚本（按通用 BP 评分维度组织，无本地截图依赖）。
+
+口径纪律（E3 提交门禁的构建期版本）：本脚本**不写死任何实测数字**。
+评测结果一律从 `assets/eval_results.json` 读，工具数从代码 `build_registry()` 读，
+代码规模与用例数从仓库现算。写死一次，代码改了 BP 不会跟着改——上一版 BP 正是这样
+在提交物里留下了"5 步全链路 / Walmart 美国站竞品（部署态启用）"两条与代码矛盾的陈述。
+"""
+import json
 import os
 import sys
+from pathlib import Path
 
-from reportlab.lib.colors import HexColor
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import mm
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import (
-    PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
-)
+try:  # reportlab 只在"出 PDF"时才需要；口径层（measured_facts）必须能在裸机上导入被测
+    from reportlab.lib.colors import HexColor
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.platypus import (
+        PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
+    )
+    HAS_REPORTLAB = True
+except ImportError:  # pragma: no cover
+    HAS_REPORTLAB = False
 
-FONT_PATH = r"C:\Windows\Fonts\msyh.ttc"
-if not os.path.exists(FONT_PATH):
-    FONT_PATH = r"C:\Windows\Fonts\simhei.ttf"
-pdfmetrics.registerFont(TTFont("Chinese", FONT_PATH))
+if HAS_REPORTLAB:
+    FONT_PATH = r"C:\Windows\Fonts\msyh.ttc"
+    if not os.path.exists(FONT_PATH):
+        FONT_PATH = r"C:\Windows\Fonts\simhei.ttf"
+    pdfmetrics.registerFont(TTFont("Chinese", FONT_PATH))
 
-PRIMARY = HexColor("#102A56")
-ACCENT = HexColor("#2D6CDF")
-GREY = HexColor("#5A6B7C")
-LIGHT = HexColor("#F2F5F9")
-WHITE = HexColor("#FFFFFF")
+    PRIMARY = HexColor("#102A56")
+    ACCENT = HexColor("#2D6CDF")
+    GREY = HexColor("#5A6B7C")
+    LIGHT = HexColor("#F2F5F9")
+    WHITE = HexColor("#FFFFFF")
 
-styles = getSampleStyleSheet()
-TITLE = ParagraphStyle("title", parent=styles["Title"], fontName="Chinese", fontSize=22,
-                       textColor=PRIMARY, spaceAfter=6)
-SUB_ST = ParagraphStyle("sub", parent=styles["Normal"], fontName="Chinese", fontSize=10,
-                        textColor=GREY, spaceAfter=18)
-H1 = ParagraphStyle("h1", parent=styles["Heading1"], fontName="Chinese", fontSize=15,
-                    textColor=PRIMARY, spaceBefore=14, spaceAfter=8)
-BODY = ParagraphStyle("body", parent=styles["Normal"], fontName="Chinese", fontSize=10,
-                      leading=16, spaceAfter=6)
-BULLET = ParagraphStyle("bullet", parent=BODY, leftIndent=10, bulletIndent=2, spaceAfter=3)
-QUOTE = ParagraphStyle("quote", parent=BODY, fontSize=9, textColor=GREY,
-                       leftIndent=8, rightIndent=8, spaceBefore=4, spaceAfter=10)
-CELL = ParagraphStyle("cell", parent=BODY, fontSize=9, spaceAfter=0)
-CELL_H = ParagraphStyle("cell_h", parent=CELL, textColor=WHITE, fontSize=9.5)
+    styles = getSampleStyleSheet()
+    TITLE = ParagraphStyle("title", parent=styles["Title"], fontName="Chinese", fontSize=22,
+                           textColor=PRIMARY, spaceAfter=6)
+    SUB_ST = ParagraphStyle("sub", parent=styles["Normal"], fontName="Chinese", fontSize=10,
+                            textColor=GREY, spaceAfter=18)
+    H1 = ParagraphStyle("h1", parent=styles["Heading1"], fontName="Chinese", fontSize=15,
+                        textColor=PRIMARY, spaceBefore=14, spaceAfter=8)
+    BODY = ParagraphStyle("body", parent=styles["Normal"], fontName="Chinese", fontSize=10,
+                          leading=16, spaceAfter=6)
+    BULLET = ParagraphStyle("bullet", parent=BODY, leftIndent=10, bulletIndent=2, spaceAfter=3)
+    QUOTE = ParagraphStyle("quote", parent=BODY, fontSize=9, textColor=GREY,
+                           leftIndent=8, rightIndent=8, spaceBefore=4, spaceAfter=10)
+    CELL = ParagraphStyle("cell", parent=BODY, fontSize=9, spaceAfter=0)
+    CELL_H = ParagraphStyle("cell_h", parent=CELL, textColor=WHITE, fontSize=9.5)
+
+
+ROOT = Path(__file__).resolve().parents[1]
+EVAL_JSON = ROOT / "assets" / "eval_results.json"
+
+
+def measured_facts() -> dict:
+    """BP 里所有数字的唯一来源：评测 JSON + 代码本身，不接受手抄常量。
+
+    任何一项取不到就抛错停下，而不是回退到旧稿里的漂亮数字——
+    BP 少一段可以补，BP 里出现没来源的数字是红线事故。
+    """
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
+    if not EVAL_JSON.exists():
+        raise SystemExit(f"缺少评测产物 {EVAL_JSON}：先跑 scripts/run_eval.py 再生成 BP")
+    ev = json.loads(EVAL_JSON.read_text("utf-8"))
+
+    from app.orchestrator import build_registry
+    from app.planner import STEPS
+
+    src_dirs = [ROOT / "app", ROOT / "web", ROOT / "scripts"]
+    loc, files = 0, 0
+    for d in src_dirs:
+        for f in list(d.rglob("*.py")) + list(d.rglob("*.js")) + list(d.rglob("*.html")):
+            loc += len(f.read_text("utf-8", errors="ignore").splitlines())
+            files += 1
+    tests = sum(len([1 for _ in f.read_text("utf-8", errors="ignore").splitlines()
+                     if _.strip().startswith("def test_")])
+                for f in (ROOT / "tests").glob("test_*.py"))
+
+    trace = ev.get("source_traceability_overall") or {}
+    spot = ev.get("fact_spot_check_accuracy") or {}
+    return {
+        "eval": ev,
+        "tools": sorted(build_registry().names()),
+        "tool_n": len(STEPS),
+        # 标准任务不跑 opportunity_scan（目标点名"选品/赛道/机会"才抢位），故 -1
+        "steps_standard": len(STEPS) - 1,
+        "steps": [(s.name, s.purpose) for s in STEPS],
+        "mode": ev["meta"].get("mode"),
+        "repeats": ev["meta"].get("repeats"),
+        "generated_at": (ev["meta"].get("generated_at") or "")[:10],
+        "summary": ev["summary"],
+        "trace_rate": trace.get("rate"),
+        "trace_detail": f"{trace.get('facts_traceable')}/{trace.get('facts_total')}",
+        "spot_accuracy": spot.get("accuracy"),
+        "spot_reason": spot.get("reason"),
+        "human_baseline": ev.get("human_baseline", {}),
+        "loc": loc, "src_files": files, "tests": tests,
+        "provenance_totals": ev.get("provenance_totals", {}),
+    }
 
 
 def heading(text):
@@ -86,6 +151,10 @@ def kv_table(rows):
 
 
 def build_bp(output):
+    if not HAS_REPORTLAB:
+        raise SystemExit("缺 reportlab，无法出 PDF：pip install reportlab "
+                         "（口径层 measured_facts() 不需要它，可单独跑测）")
+    f = measured_facts()
     doc = SimpleDocTemplate(
         output, pagesize=A4,
         leftMargin=18 * mm, rightMargin=18 * mm,
@@ -102,19 +171,23 @@ def build_bp(output):
     E.append(Spacer(1, 12 * mm))
     E.append(kv_table([
         ("项目定位", "给一人公司（OPC）用的跨境电商 AI 运营部"),
-        ("核心能力", "真实市场扫描 → 现场汇率折算 → 定价沙盘 → 合规体检 → LLM Listing"),
-        ("信任底座", "多源真实抓取 + 来源闸门 + 存证可溯源 + 诚实口径（可复算）"),
-        ("实测验证", "3 品类 × 2 轮 × 5 步全成功；云端魔搭部署 5/5 步端到端"),
+        ("核心能力", "选品雷达 → 竞品实采 → 现场汇率 → 定价沙盘 → 合规体检 → 关键词层 → "
+                    "Listing 工坊 → 文案合规审计"),
+        ("信任底座", "真实抓取 + robots 闸门 + 来源闸门 + 单品页存证可溯源 + 诚实口径（可复算）"),
+        (f"实测验证（{f['mode']} 模式，{f['generated_at']} 产出）",
+         f"3 品类 × {f['repeats']} 轮，{f['tool_n']} 工具白名单，"
+         f"来源可溯率 {f['trace_detail']}；{f['tests']} 项离线单测全绿"),
     ]))
     E.append(Spacer(1, 5 * mm))
-    E.append(Paragraph("日期：2026-10-28　·　版本：v1.0", SUB_ST))
+    E.append(Paragraph("日期：2026-10-30　·　版本：v1.1（口径与代码对齐）", SUB_ST))
     E.append(PageBreak())
 
     # 一、项目概述
     E += heading("一、项目概述")
-    E += para("中小跨境电商卖家（尤其一人公司、OPC）的出海前置调研是重人工、慢流程的：打开多个市场站点比价、查汇率、算成本、查合规、写 Listing，一个新品从选品到准备上架往往要花 2–4 人天。TradePilot 用 AI 智能体把这一链路压缩为「下达一个目标，系统自主完成 5 步全链路」。")
-    keywords = "、".join(["多源真实抓取", "来源闸门防幻觉", "现场汇率", "定价沙盘", "合规体检",
-                          "LLM 规划", "岸基运营大屏", "存证可溯源"])
+    E += para("中小跨境电商卖家（尤其一人公司、OPC）的出海前置调研是重人工、慢流程的：打开多个市场站点比价、查汇率、算成本、查合规、写 Listing，一个新品从选品到准备上架往往要花 2–4 人天。TradePilot 用 AI 智能体把这一链路压缩为「下达一个目标，系统在 "
+              f"{f['tool_n']} 个工具里自主规划、标准任务连续跑完 {f['steps_standard']} 步」。")
+    keywords = "、".join(["真实抓取 + robots 闸门", "来源闸门防幻觉", "现场汇率", "定价沙盘",
+                          "合规条款正文命中", "LLM 自主编排", "原生 Canvas 大屏", "单品页存证可溯源"])
     E += para("关键词：" + keywords)
     E.append(Paragraph("一句话：真实数据打底，Agent 自主决策，人只看结果。", QUOTE))
 
@@ -130,19 +203,17 @@ def build_bp(output):
 
     # 三、解决方案
     E += heading("三、解决方案")
-    E += para("TradePilot 采用「统一执行器 + 工具白名单 + 来源闸门」的单 agent 模式，每个任务 5 张决策卡，全程留痕：")
+    E += para(f"TradePilot 采用「统一执行器 + 工具白名单 + 来源闸门」的单 agent 模式："
+              f"标准任务每个目标产出 {f['steps_standard']} 张决策卡，选品雷达按目标触发，全程留痕。"
+              "下表逐行取自代码里的规划图（`app/planner.py`），不在文档里另立一套：")
     E.append(make_table(
-        ["决策", "工具", "产出（实测）"],
-        [
-            ["1", "market_scan", "真实抓取 8 条商品，价格带 ¥36.70–259.00 CNY，逐条带来源存证"],
-            ["2", "fx_rate", "现场 USD/CNY = 6.6675（欧洲央行来源，存证）"],
-            ["3", "pricing_sandbox", "到岸 $23.84 → 报价下限 $36.68，5 档净利率敏感性"],
-            ["4", "compliance_check", "品类合规清单，官方来源现场验证 + 不可达如实标注"],
-            ["5", "listing_draft", "英文标题 + 卖点，事实字段全部回填自存证数据点"],
-        ],
-        [18 * mm, 38 * mm, 122 * mm],
+        ["#", "工具", "职责（取自 planner.STEPS，非文档另写）"],
+        [[str(i), name, purpose] for i, (name, purpose) in enumerate(f["steps"], 1)],
+        [10 * mm, 34 * mm, 134 * mm],
     ))
     E.append(Spacer(1, 3 * mm))
+    E += para("口径边界：候选集来自编译期固定的依赖图，LLM 在**可执行白名单内**选择、"
+              "非法即回落规则——这是「受约束的自主编排」，不宣称开放式任务分解。")
 
     # 四、核心产品与技术
     E += heading("四、核心产品与技术")
@@ -150,36 +221,61 @@ def build_bp(output):
     E += bullets([
         "统一执行器：所有工具走同一入口，异常永不抛出（failure ladder），保证回合不中断；",
         "来源闸门：定价/Listing 只消费存证在册的数据点，编造的 id 一律 held 拦截；",
-        "双通道抓取：httpx 快路径 + Playwright 浏览器强路径，按域名策略与限速保护；",
-        "多源适配：当当（国内 CNY 参考）、Walmart（美国站 USD 竞品，部署态启用）、Frankfurter 汇率 API；",
-        "LLM 规划 + 规则兜底：LLM 可用时自主规划，不可用时固定 pipeline 照常闭环；",
-        "反幻觉信任状：每个数字标注来源 URL + 时间戳，页面数值服务端回填。",
+        "双通道抓取：httpx 快路径 + Playwright 浏览器强路径，抓取前过 robots.txt 闸门并按域名限速；",
+        "多源适配（如实分列）：Newegg 公开搜索页 = 真实 USD 竞品价主源；当当 = CNY 国内参考价"
+        "（÷ 现场汇率折算，不称\"美国站竞品价\"）；Walmart 已写解析器，但实测其 robots.txt 对通用 UA "
+        "禁止 /search，闸门如实拦下、不做绕过——要上美国站官方竞品带需走该站 API 授权；",
+        "LLM 规划 + 规则兜底：LLM 可用时在白名单内自主决策，不可用时规则序照常闭环（评测可双模式复现）；",
+        "反幻觉信任状：每条事实存 单品页 URL + 抓取时间戳 + 内容 hash，前端点\"存证#N\"弹层回查，"
+        "页面数值由服务端从存证回填，模型只给 ID。",
     ])
     E.append(Spacer(1, 2 * mm))
     E.append(kv_table([
-        ("代码规模", "约 1000 行（app/ + web/ + scripts/）"),
-        ("来源存证", "SQLite 持久化，页面可点溯源"),
-        ("岸基大屏", "原生 Canvas，无构建依赖，决策时间线实时流"),
+        ("代码规模", f"{f['src_files']} 个源文件 / 约 {f['loc']:,} 行（app + web + scripts，构建期实算）"),
+        ("离线单测", f"{f['tests']} 个用例（标准库 unittest，不联网、不污染生产存证库）"),
+        ("来源存证", f"SQLite 持久化，当前 {f['provenance_totals'].get('total', 0)} 条 / "
+                     f"{f['provenance_totals'].get('distinct_sources', 0)} 个来源；"
+                     f"GET /api/provenance/{{id}} 可逐条回访"),
+        ("岸基大屏", "原生 Canvas（真 <canvas> 绘制雷达/价格带/敏感性）+ DOM，无构建依赖"),
     ]))
 
     # 五、数据验证
     E += heading("五、数据验证（可复算）")
-    E += para("实测指标来自 assets/eval_results.json，可复算：")
+    E += para(f"下表逐格由脚本读 `assets/eval_results.json`（{f['mode']} 模式，"
+              f"{f['generated_at']} 产出，3 品类 × {f['repeats']} 轮）生成，"
+              "文档里没有手抄数字：")
     E.append(make_table(
-        ["品类", "结果"],
-        [
-            ["pet/dog bed", "5/5 步 · 8 商品 · 合规 3/4 · LLM 规划 90% · 平均 219.9s"],
-            ["home/wall clock", "5/5 步 · 8 商品 · 合规 3/4 · LLM 规划 100% · 平均 148.6s"],
-            ["electronics/usb c cable", "5/5 步 · 8 商品 · 合规 2/4 · LLM 规划 100% · 平均 201.4s"],
-        ],
-        [48 * mm, 118 * mm],
+        ["品类", "轮次", "步成功率", "商品均值", "条款命中", "LLM 决策步", "审计分"],
+        [[cat, str(s.get("runs", "—")),
+          f"{s.get('steps_success_rate', 0) * 100:.0f}%",
+          f"{s.get('items_mean', 0)}",
+          f"{s.get('compliance_verified_mean', 0) * 100:.0f}%",
+          f"{s.get('llm_planned_rate', 0) * 100:.0f}%（覆盖 {s.get('llm_override_total', 0)} 次分歧）",
+          "—" if s.get("audit_score_mean") is None else str(s.get("audit_score_mean"))]
+         for cat, s in f["summary"].items()],
+        [26 * mm, 12 * mm, 20 * mm, 18 * mm, 18 * mm, 40 * mm, 14 * mm],
     ))
     E.append(Spacer(1, 2 * mm))
+    # 五维度里三个需要真人到场的，没数据就如实写"待"，不引用旧稿数字
+    trace_line = (f"来源可溯率：{f['trace_detail']} = {f['trace_rate'] * 100:.0f}%"
+                  if f["trace_rate"] is not None else
+                  "来源可溯率：该维度由本次新增的 `app/eval_metrics.py` 计算，"
+                  "现有 eval JSON 尚未含此字段——重跑 run_eval.py 后自动填入，不沿用旧稿口径数字；")
+    spot_line = (f"事实抽检准确率：{f['spot_accuracy'] * 100:.0f}%" if f["spot_accuracy"] is not None
+                 else f"事实抽检准确率：待真人回访（{f['spot_reason'] or 'agent 自检不自证'}）；")
+    labor = f.get("human_baseline") or {}
+    labor_line = (f"人工基线：真人掐表 {labor.get('task_time_min')} 分钟（{labor.get('performed_by')}）"
+                  if labor.get("task_time_min") else
+                  "人工成本折算：待真人按 docs/eval/人工SOP.md 掐表后计算（方案红线：禁估算）；")
     E += bullets([
-        "全部 6 轮 5/5 步成功，步骤成功率 100%；",
-        "事实抽检：assets/audit_sample.json 30 条存证样本供人工回访原页核对；",
-        "来源可溯率：每条价格带来源 URL + 抓取时间戳，Agent 侧 100%（人工通常不保证）；",
-        "部署态：魔搭创空间 fygrobert-tradepilot.ms.show，云端 WebSocket 端到端 5/5 步跑通。",
+        f"步骤成功率与耗时为 {sum(s.get('runs', 0) for s in f['summary'].values())} 轮实测均值；"
+        f"累计存证 {f['provenance_totals'].get('total', 0)} 条 / "
+        f"{f['provenance_totals'].get('distinct_sources', 0)} 个独立来源；",
+        trace_line,
+        spot_line,
+        labor_line,
+        "自主性口径：llm_planned_rate 只是模型选择的步数占比，"
+        "**与规则评分不一致且被采纳的 llm_override_total 才是自主性证据**——两个数都披露。",
     ])
 
     # 六、市场与竞争
@@ -213,10 +309,10 @@ def build_bp(output):
     E.append(make_table(
         ["阶段", "内容", "时间"],
         [
-            ["W1-W2", "后端引擎 + 3 品类实测 + LLM 网关", "10 月下旬"],
-            ["W3", "魔搭创空间部署 + 云端 5/5 验证", "10 月 28 日（已完成）"],
-            ["W4", "人工基线 SOP 计时 + 事实抽检回访", "11 月上旬"],
-            ["赛后", "品类扩展 + Walmart 美国站实测（云上自动重验）", "12 月"],
+            ["已完成", "8 工具自主编排、真实抓取与存证、Canvas 大屏、DOCX 导出、171 项离线单测", "10 月 30 日"],
+            ["提交前", "公网上线并重验发布面（check_release_drift 全绿）+ 人工基线 SOP 掐表 + 30 条事实抽检回访", "11-05 ~ 11-08"],
+            ["提交", "官网报名与作品上传（截止 11-10 24:00）", "11-10 中午前"],
+            ["赛后", "接入需官方 API 授权的真实美国站竞品带；选品雷达升级为需求侧评分", "11 月下旬起"],
         ],
         [22 * mm, 110 * mm, 44 * mm],
     ))
@@ -228,6 +324,32 @@ def build_bp(output):
     print("BP 已生成:", output)
 
 
+def release_gate(base: str) -> None:
+    """BP 落纸前对着线上核一遍：材料里的演示承诺必须是链接真能演出来的东西。
+
+    上一版 BP 写着"原生 Canvas 大屏 + 云端 5/5 步端到端"，而当时线上镜像只有
+    5 个工具、前端 0 处 canvas——评委点开链接就是自我否定。这里让脚本替人拦住。
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from check_release_drift import compare, local_truth, remote_state  # noqa: E402
+    import httpx  # noqa: E402
+
+    with httpx.Client(timeout=25, follow_redirects=True) as client:
+        health = client.get(f"{base}/api/health", headers={"User-Agent": "TradePilotBP/1.1"})
+        if health.status_code != 200:
+            raise SystemExit(f"发布面门禁未过：{base} 不可达（HTTP {health.status_code}）")
+        rows = compare(local_truth(), remote_state(base, client))
+    bad = [r for r in rows if not r[1]]
+    if bad:
+        for name, _, detail in bad:
+            print(f"  [DRIFT] {name}\n          {detail}")
+        raise SystemExit("BP 中止：线上镜像落后于代码。先重新部署，再重跑本脚本。")
+    print("  发布面门禁通过：线上与本地一致，BP 内的演示承诺可兑现。")
+
+
 if __name__ == "__main__":
-    out = sys.argv[1] if len(sys.argv) > 1 else r"D:\Apps\电商\tradepilot\docs\TradePilot_BP.pdf"
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    out = args[0] if args else str(ROOT / "docs" / "TradePilot_BP.pdf")
+    if "--check-live" in sys.argv:
+        release_gate("https://fygrobert-tradepilot.ms.show")
     build_bp(out)

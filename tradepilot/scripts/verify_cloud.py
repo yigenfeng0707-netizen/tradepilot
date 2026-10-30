@@ -34,7 +34,9 @@ async def main() -> None:
 
             # 接收事件流
             steps_done = 0
-            steps_total = 5
+            # 步数不写死：写死成 5 会让"旧镜像只跑 5 步"看起来像验证通过。
+            # 上限取本地规划器的硬上限，实际以 mission_done 收尾。
+            steps_total = 14
             results = {}
             for i in range(steps_total + 2):
                 try:
