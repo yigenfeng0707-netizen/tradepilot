@@ -21,3 +21,6 @@ docx-build/*.pdf
 # 参考仓库与构建产物（不入本项目版本库）
 commerce-agents/
 docx-build/
+
+# 助手工作区数据（本地状态，不入版本库）
+.workbuddy-ai/
