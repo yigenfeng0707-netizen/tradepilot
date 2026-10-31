@@ -28,7 +28,7 @@ from urllib.parse import urljoin, urlsplit
 
 from .. import provenance
 from .executor import ToolOutcome
-from .fetch import fetch_http, robots_allowed
+from .fetch import fetch_browser, fetch_http, robots_allowed
 
 # 平台规则（国内可达，逐品类现场验证）
 PLATFORM_RULES = {
@@ -156,54 +156,139 @@ def rank_links(links: list[tuple[str, str]], terms: list[str]) -> list[str]:
     return [url for _, _, url in sorted(scored)]
 
 
+# 导航/页脚文字的特征词：这些片段里有条款词，但它不是条款本身。
+# 实测教训：不加这层，FDA/OEHHA/USITC 三条的"命中证据"全是
+# "Careers at OEHHA Join Our Listservs Contact Us" 这类导航栏——
+# 状态写着 clause_matched，点开存证却读不出一句要求，等于假验证。
+_NAV_MARKS = ("skip to", "contact us", "careers", "listserv", "privacy policy",
+              "site map", "follow us", "sign in", "subscribe", "all rights reserved")
+_MIN_PROSE_WORDS = 12
+# 上限的作用：导航/页脚在纯文本里没有句号，会连成 150–250 词的巨块，
+# 里面塞满条款词。真正的条款句通常 15–60 词，超过 90 词的一律不当条款句。
+_MAX_PROSE_WORDS = 90
+_SENT_SPLIT = re.compile(r"(?<=[.!?])\s+")
+
+
+def _prose_ok(sentence: str) -> bool:
+    """判断一个片段像不像"正文句子"而不是导航栏。
+
+    四条否决：太短（导航条目普遍 3–8 词）、太长（无标点的导航巨块）、
+    含页脚特征词、大写开头词占比过高（导航是 Title Case，正文是自然句）。
+    """
+    words = sentence.split()
+    if not _MIN_PROSE_WORDS <= len(words) <= _MAX_PROSE_WORDS:
+        return False
+    low = sentence.lower()
+    if any(mark in low for mark in _NAV_MARKS):
+        return False
+    if sentence.count("|") >= 2:
+        return False
+    caps = sum(1 for w in words if w[:1].isupper())
+    return caps / len(words) <= 0.45
+
+
 def locate_clause(text: str, terms: list[str]) -> dict[str, Any] | None:
-    """在正文中定位条款原文片段：取命中关键词最多的窗口。
+    """在正文中定位条款原文片段：优先取**读得懂的句子**。
 
     判定门槛：至少命中 2 个不同关键词（单关键词条款降级为 1 个），
-    避免"页面里碰巧出现过某个词"被当成条款验证。
+    且该片段必须通过 `_prose_ok`（排除导航栏/页脚）——命中词出现在导航里
+    不构成条款验证，宁可报 page_only 也不给假证据。
     """
     if not text:
         return None
-    low = text.lower()
+    need = 2 if len(terms) > 1 else 1
+    low_terms = [t.lower() for t in terms]
+
+    # 候选窗口 = 单句，或"相邻两句"。为什么允许两句：条款常拆成
+    # "…requires labeling of X." + "Importers must…" 两句表述，
+    # 强求同句会把真条款漏掉；而导航巨块过不了 _prose_ok，天然被排除。
+    sentences = [s.strip() for s in _SENT_SPLIT.split(text) if s.strip()]
+    windows: list[str] = []
+    for i, sentence in enumerate(sentences):
+        if not _prose_ok(sentence):
+            continue
+        windows.append(sentence)
+        if i + 1 < len(sentences) and _prose_ok(sentences[i + 1]):
+            windows.append(f"{sentence} {sentences[i + 1]}")
+
     best: tuple[int, int, str] | None = None
-    for term in terms:
-        needle = term.lower()
-        start = 0
-        while True:
-            pos = low.find(needle, start)
-            if pos < 0:
-                break
-            window = text[max(0, pos - 70):pos + _EXCERPT_WINDOW]
-            hits = sum(1 for t in terms if t.lower() in window.lower())
-            if best is None or hits > best[0]:
-                best = (hits, pos, window)
-            start = pos + len(needle)
+    for window in windows:
+        hits = sum(1 for t in low_terms if t in window.lower())
+        if hits < need:
+            continue
+        # 命中词越多越好；同样多时取更短的窗口（证据更聚焦）
+        if best is None or (hits, -len(window)) > (best[0], -len(best[2])):
+            best = (hits, len(window), window)
+
     if best is None:
         return None
-    hits, _, window = best
-    need = 2 if len(terms) > 1 else 1
-    if hits < need:
-        return None
-    matched = [t for t in terms if t.lower() in window.lower()]
-    return {"excerpt": re.sub(r"\s+", " ", window).strip()[:400],
-            "matched_terms": matched, "term_hits": hits}
+    hits, _, sentence = best
+    matched = [t for t in terms if t.lower() in sentence.lower()]
+
+    # 句子可能很长：以第一个命中词为中心截一段，保证片段里既有关键词又有上下文
+    flat = re.sub(r"\s+", " ", sentence).strip()
+    first = min((flat.lower().find(t) for t in matched if t in flat.lower()), default=0)
+    start = max(0, first - 90)
+    excerpt = flat[start:start + 400]
+    if start > 0:
+        excerpt = "…" + excerpt
+    if start + 400 < len(flat):
+        excerpt = excerpt + "…"
+    return {"excerpt": excerpt, "matched_terms": matched, "term_hits": hits}
 
 
-async def _grab(url: str) -> dict[str, Any]:
-    """带 robots 闸门的真实抓取：返回 {ok, status, html, text, error}（正文一次算好复用）。"""
+async def _grab(url: str, prefer_browser: bool = False) -> dict[str, Any]:
+    """带 robots 闸门的真实抓取：返回 {ok, status, html, text, channel, error}。
+
+    **为什么必须带浏览器降级**：美国官方站（CPSC/FDA/FCC/PHMSA/HTS）对
+    HTTP 直连普遍返 403 或"200 + 空壳/拦截页"——实测 hts.usitc.gov 是 JS 单页应用
+    （正文 0 字）、oehha 被 Incapsula 拦、cpsc/fcc/phmsa 直接 403。
+    只走 HTTP 会让"逐条对官方来源定位条款正文"变成 0 命中，红线承诺就成了空话。
+    同一批 URL 走 Chromium 全部 200 且有正文，因此这里做一次降级重试。
+
+    `prefer_browser`：同一站点一旦证实需要浏览器（入口页降级成功），
+    后续深页直接走浏览器，避免每条都先撞一次 403。
+    """
     allowed, note = await robots_allowed(url)
     if not allowed:
         return {"ok": False, "status": None, "html": "", "text": "",
-                "error": f"robots 禁止：{note}"}
+                "channel": None, "error": f"robots 禁止：{note}"}
+
+    def _pack(html: str, status: int | None, channel: str,
+              error: str | None = None) -> dict[str, Any]:
+        text = page_text(html)
+        return {"ok": bool(html) and error is None, "status": status, "html": html,
+                "text": text, "channel": channel, "error": error}
+
+    http_result: dict[str, Any] | None = None
+    http_error: str | None = None
+    if not prefer_browser:
+        try:
+            resp = await fetch_http(url)
+            html = resp["html"] if resp["status"] == 200 else ""
+            if resp["status"] == 200 and not block_reason(html, page_text(html)):
+                return _pack(html, resp["status"], "http")
+            http_result = {"status": resp["status"], "html": html}
+        except Exception as exc:  # noqa: BLE001
+            http_error = f"{type(exc).__name__}: {exc}"
+
+    # HTTP 不可用（403 / 空壳 / 拦截页 / 异常）→ 换浏览器通道再试一次
     try:
-        resp = await fetch_http(url)
+        bresp = await fetch_browser(url)
+        bhtml = bresp.get("html") or ""
+        if bhtml and not block_reason(bhtml, page_text(bhtml)):
+            return _pack(bhtml, bresp.get("status", 200), "browser")
+        browser_note = block_reason(bhtml, page_text(bhtml)) or "浏览器通道返回空内容"
     except Exception as exc:  # noqa: BLE001
-        return {"ok": False, "status": None, "html": "", "text": "",
-                "error": f"{type(exc).__name__}: {exc}"}
-    ok = resp["status"] == 200
-    html = resp["html"] if ok else ""
-    return {"ok": ok, "status": resp["status"], "html": html,
-            "text": page_text(html), "error": None}
+        browser_note = f"浏览器通道异常 {type(exc).__name__}: {exc}"
+
+    # 两条通道都不行：如实报告，并保留各自的失败原因（便于答辩时解释）
+    if http_result is not None:
+        return {"ok": False, "status": http_result["status"],
+                "html": http_result["html"], "text": page_text(http_result["html"]),
+                "channel": "http", "error": f"HTTP 不可用（{http_result['status']}）；{browser_note}"}
+    return {"ok": False, "status": None, "html": "", "text": "", "channel": None,
+            "error": f"HTTP 失败（{http_error}）；{browser_note}"}
 
 
 _BLOCK_MARKS = ("incapsula", "request unsuccessful", "access denied", "captcha",
@@ -239,9 +324,11 @@ async def verify_clause(entry: dict[str, Any]) -> dict[str, Any]:
     if content_ok and terms:
         clause = locate_clause(root["text"], terms)
         if clause is None:              # 入口页没写条款 → 同域内按条款词找候选深页
+            # 入口页若已证实要走浏览器（政府站常见），深页直接走浏览器，不再逐条撞 403
+            deep_prefer = root.get("channel") == "browser"
             for candidate in rank_links(same_origin_links(root["html"], entry_url),
                                         terms)[:MAX_LINK_TRIES]:
-                deep = await _grab(candidate)
+                deep = await _grab(candidate, prefer_browser=deep_prefer)
                 if not deep["ok"] or block_reason(deep["html"], deep["text"]):
                     continue            # 深页也必须内容可核验，否则不配当证据
                 found = locate_clause(deep["text"], terms)
@@ -264,6 +351,8 @@ async def verify_clause(entry: dict[str, Any]) -> dict[str, Any]:
               # live = 真的拿到可核验正文；http_reachable = 仅仅是 HTTP 200。两者必须分开。
               "live": bool(content_ok or clause),
               "http_reachable": bool(root["ok"]),
+              # 通道如实记录：政府站多为 browser，普通站为 http；答辩被问"怎么抓的"直接给这个字段
+              "channel": root.get("channel"),
               "block_reason": root_block,
               "excerpt": (clause or {}).get("excerpt"),
               "matched_terms": (clause or {}).get("matched_terms", []),
@@ -275,7 +364,8 @@ async def verify_clause(entry: dict[str, Any]) -> dict[str, Any]:
             "item": entry["item"], "authority": entry["authority"], "kind": result["kind"],
             "verification": verification, "matched_terms": result["matched_terms"],
             "excerpt": result["excerpt"], "http_status": page_status,
-            "entry_url": entry_url, "fetch_error": root["error"]},
+            "entry_url": entry_url, "channel": root.get("channel"),
+            "fetch_error": root["error"]},
             raw_text=(result["excerpt"] or "") + page_url)
     else:
         result["provenance_id"] = None
@@ -284,7 +374,7 @@ async def verify_clause(entry: dict[str, Any]) -> dict[str, Any]:
 
 _NOTE = {"clause_matched": "已在官方页面定位到条款原文片段",
          "page_only": "已取得官方页面正文，但未定位到条款原文",
-         "blocked": "HTTP 200 但内容不可核验（WAF 拦截页 / SPA 空壳 / 软 404）",
+         "blocked": "HTTP 与浏览器通道均未取得可核验正文（WAF 拦截 / SPA 空壳 / 软 404）",
          "offline": "网络不可达或 robots 禁止，仅作引用标注"}
 
 

@@ -68,10 +68,25 @@ class TestBpFacts(unittest.TestCase):
         from app.planner import STEPS
         f = build_bp.measured_facts()
         self.assertEqual(f["tool_n"], len(STEPS))
-        self.assertEqual(f["steps_standard"], len(STEPS) - 1)   # 选品雷达按目标触发
         self.assertEqual([n for n, _ in f["steps"]], [s.name for s in STEPS])
         self.assertGreater(f["tests"], 100)
         self.assertGreater(f["loc"], 1000)
+
+    def test_standard_steps_come_from_runs_not_from_assumption(self):
+        """步数必须从评测数据取中位数。
+
+        上一版这里断言 steps_standard == len(STEPS)-1（"选品雷达按目标触发"），
+        而实测 9 轮全部跑 8 步——用例把错误假设固化成了"事实"。
+        现在断言的是**推导方式**：数据说几步就是几步，不按设计意图猜。
+        """
+        payload = dict(BASE_EVAL)
+        payload["runs"] = [{"steps_done": 7}] * 3
+        build_bp.EVAL_JSON = _write(self._tmp.name, payload)
+        self.assertEqual(build_bp.measured_facts()["steps_standard"], 7)
+
+        payload["runs"] = [{"steps_done": 8}] * 3
+        build_bp.EVAL_JSON = _write(self._tmp.name, payload)
+        self.assertEqual(build_bp.measured_facts()["steps_standard"], 8)
 
     def test_missing_eval_file_refuses_to_build(self):
         build_bp.EVAL_JSON = Path(self._tmp.name) / "nope.json"

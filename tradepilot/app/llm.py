@@ -94,17 +94,32 @@ async def plan_next(goal: str, done_steps: list[str], tools: list[dict[str, str]
     return None
 
 
-async def write_listing(goal: str, facts: dict[str, Any]) -> dict[str, Any] | None:
-    """Listing 文案：品类级文案（非具体 SKU），数字只准来自 facts；失败返回 None 走模板。"""
+_LANG_NAME = {"US": "English", "UK": "English", "DE": "German", "JP": "Japanese"}
+
+
+async def write_listing(goal: str, facts: dict[str, Any],
+                        marketplace: str = "US",
+                        language_note: str | None = None) -> dict[str, Any] | None:
+    """Listing 文案：品类级文案（非具体 SKU），数字只准来自 facts；失败返回 None 走模板。
+
+    `marketplace` 必须传进来：实测不指定目标站语言时，模型会用中文写美国站文案
+    （五点全中文、标题却是英文），审计直接判 critical「目标站语言残留」。
+    语言是**硬约束**，写进提示词还要在调用侧校验（见 tools/listing.py）。
+    """
+    lang = _LANG_NAME.get(marketplace, "English")
+    retry_note = f"\n上一次输出未通过校验：{language_note}。这次必须修正。" if language_note else ""
     raw = await chat(
         "你是跨境电商 Listing 文案师，任务是写品类级文案（不是某个具体 SKU 的规格页）。"
         "facts 里是经过验证的真实市场数据（价格带、定位结论、合规要点）。规则："
-        "1) 一切数字与认证名称只能来自 facts，一个都不许编造；"
-        "2) 品类通用卖点（如材质工艺的一般性描述）可以写，但不得出现具体未提供的参数"
+        f"1) **文案语言必须是 {lang}**，不得出现中文（含中文标点）；目标站 {marketplace}；"
+        "2) 一切数字与认证名称只能来自 facts，一个都不许编造；"
+        "3) 品类通用卖点（如材质工艺的一般性描述）可以写，但不得出现具体未提供的参数"
         "（尺寸、承重、面料成分等一律不写）；"
-        "3) 输出严格 JSON：{\"title\":\"<=200 chars\",\"bullets\":[\"...\"],\"description\":\"...\"}，"
-        "不要输出任何其他文字。",
-        f"目标：{goal}\n事实数据：{json.dumps(facts, ensure_ascii=False)}",
+        "4) bullets 必须**恰好 5 条**，每条 80–200 字符；标题 ≤200 字符；"
+        "5) 不得使用 emoji、全大写、促销语（best seller / #1 / free shipping 等）；"
+        "6) 输出严格 JSON：{\"title\":\"...\",\"bullets\":[\"...\"],\"description\":\"...\"}，"
+        "不要输出任何其他文字。" + retry_note,
+        f"目标：{goal}\n目标市场：{marketplace}\n事实数据：{json.dumps(facts, ensure_ascii=False)}",
         max_tokens=2000,
     )
     if raw is None:

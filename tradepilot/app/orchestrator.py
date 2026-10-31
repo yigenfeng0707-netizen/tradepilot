@@ -156,7 +156,9 @@ async def run_mission(
         attempts[chosen.name] = attempts.get(chosen.name, 0) + 1
         step_params = planner.retry_input(chosen.name, spec, params, attempts[chosen.name])
         tool_input = _wired_input(chosen.name, state, step_params)
+        step_started = time.time()
         outcome = await registry.execute(chosen.name, tool_input)
+        step_elapsed = round(time.time() - step_started, 1)
         state[chosen.name] = outcome.to_json()
 
         card = {
@@ -169,7 +171,10 @@ async def run_mission(
             "candidates": [c.to_json() for c in ranked if c.eligible or c.name == chosen.name],
             "llm_adopted": llm_adopted, "llm_rejected": llm_rejected,
             "status": outcome.status, "gate": outcome.gate,
-            "summary": outcome.summary, "elapsed_s": round(time.time() - started, 1),
+            "summary": outcome.summary,
+            # 两个时间口径分开：step_s 是本步真实耗时，elapsed_s 是开工至今的累计值。
+            # 只报一个数会被误读——"这步花了 173 秒"和"到这一步已用 173 秒"是两件事。
+            "step_s": step_elapsed, "elapsed_s": round(time.time() - started, 1),
         }
         decisions.append(card)
         event = {"type": "decision", **card}

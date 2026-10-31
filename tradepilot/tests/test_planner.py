@@ -54,7 +54,22 @@ class TestRetryAndDegrade(unittest.TestCase):
         self.assertEqual(chosen.attempt, 2)
         params = planner.retry_input("market_scan", planner.SPEC_BY_NAME["market_scan"],
                                      {"source": "dangdang"}, 2)
-        self.assertEqual(params["source"], "walmart", "重试应切换数据源")
+        self.assertEqual(params["source"], "newegg", "重试应切换到实测可抓的源")
+
+    def test_alt_source_is_registered_and_reachable(self) -> None:
+        """重试源不能指向已知不可达的站。
+
+        实测教训：重试源曾是 walmart，而 walmart 的 robots.txt 对通用 UA 禁止 /search，
+        于是 electronics 品类每次都"重试成功但必然失败"，还输出一条误导性的
+        "请改用官方 API" 错误——用一次重试换一条错话。
+        """
+        from app.tools.sources import SOURCES
+        for spec in planner.STEPS:
+            if not spec.alt_source:
+                continue
+            self.assertIn(spec.alt_source, SOURCES, f"{spec.name} 的重试源未注册")
+            self.assertNotEqual(spec.alt_source, "walmart",
+                                "walmart 对通用 UA 禁止 /search，不能作为重试源")
 
     def test_exhausted_attempts_are_abandoned(self) -> None:
         state = {"market_scan": {"status": "error", "data": {}}}

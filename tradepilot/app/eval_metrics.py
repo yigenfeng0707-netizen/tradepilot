@@ -107,6 +107,19 @@ def spot_check_accuracy(sheet: list[dict]) -> dict:
             "reason": "已全量人工回访核对"}
 
 
+def per_run_mean_elapsed(runs: Iterable[dict]) -> float | None:
+    """单次任务的平均耗时。
+
+    对照实验必须**同一件事比同一件事**：人工基线是"一次任务"的用时，
+    所以 agent 侧也只能取单次均值。用整批 wall time 去比，等于把 N 次任务的
+    耗时压在 1 次人工任务上，自动化率凭空变好看——那是口径作弊，不是优化。
+    """
+    values = [float(r["elapsed_s"]) for r in runs if r.get("elapsed_s")]
+    if not values:
+        return None
+    return round(sum(values) / len(values), 1)
+
+
 def labor_cost_equiv(human_baseline: dict | None, agent_elapsed_s: float,
                      hourly_cny: float) -> dict:
     """人工成本折算：人工基线没由真人掐表就返回 null，不按"经验一小时"估。"""
@@ -122,6 +135,8 @@ def labor_cost_equiv(human_baseline: dict | None, agent_elapsed_s: float,
         "automation_rate": round(1.0 - agent_s / human_s, 4) if human_s > 0 else None,
         "hourly_cny": float(hourly_cny),
         "human_minutes": float(minutes),
+        "agent_elapsed_s": round(agent_s, 1),
+        "agent_elapsed_basis": "per_run_mean_s（单次任务均值，与人工单次同口径）",
         "reason": "时薪为入参（--hourly-cny）而非实测值，BP 引用时须同时标注",
     }
 

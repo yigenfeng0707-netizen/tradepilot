@@ -33,7 +33,10 @@ CLAUSE_TEXT = (
     "Cosmetic Act. Unrelated cooking tips appear here."
 )
 
-SINGLE_TERM_TEXT = "This page mentions labeling only once and nothing else relevant."
+SINGLE_TERM_TEXT = (
+    "This notice explains that the agency reviews labeling requirements and "
+    "publishes guidance for manufacturers and importers in the United States."
+)
 
 # 正文足够长但没有条款内容 → 才是真正的 page_only
 LONG_NOISE_TEXT = (
@@ -53,15 +56,20 @@ TERMS = ["animal feed", "labeling", "guaranteed analysis"]
 
 
 def fake_grab(pages: dict[str, dict]):
-    """按 URL 查表的 _grab 替身：未登记的 URL 一律视为不可达。"""
-    async def _grab(url: str) -> dict:
+    """按 URL 查表的 _grab 替身：未登记的 URL 一律视为不可达。
+
+    签名必须与真实 `_grab(url, prefer_browser=False)` 一致——深页会带这个参数。
+    """
+    async def _grab(url: str, prefer_browser: bool = False) -> dict:
         return pages.get(url) or {"ok": False, "status": None, "html": "",
-                                  "text": "", "error": "not registered"}
+                                  "text": "", "channel": None,
+                                  "error": "not registered"}
     return _grab
 
 
-def page(html: str, text: str) -> dict:
-    return {"ok": True, "status": 200, "html": html, "text": text, "error": None}
+def page(html: str, text: str, channel: str = "http") -> dict:
+    return {"ok": True, "status": 200, "html": html, "text": text,
+            "channel": channel, "error": None}
 
 
 def urls(link_pairs: list[tuple[str, str]]) -> list[str]:
@@ -252,3 +260,86 @@ class TestComplianceTool(unittest.TestCase):
             self.assertTrue(entry.get("terms"), entry["item"])
             self.assertTrue(entry["source_url"].startswith("https://"), entry["item"])
             self.assertTrue(entry.get("authority") and entry.get("item"), entry["item"])
+
+
+class TestBrowserFallback(unittest.TestCase):
+    """HTTP 被 WAF 拦 / 空壳时，必须换浏览器通道再试一次。
+
+    这是实测逼出来的：CPSC/FDA/FCC/PHMSA/HTS 对 HTTP 直连返 403 或"200 + 0 字"，
+    同一批 URL 走 Chromium 全部 200 且有正文。没有这层降级，
+    "逐条对官方来源定位条款原文"就会是 0 命中——红线承诺变空话。
+    """
+
+    URL = "https://www.cpsc.gov/Regulations-Laws--Standards"
+
+    def _grab_with(self, http, browser, robots=(True, "ok")):
+        async def _robots(_url):
+            return robots
+
+        with mock.patch.object(C, "robots_allowed", _robots), \
+                mock.patch.object(C, "fetch_http", http), \
+                mock.patch.object(C, "fetch_browser", browser):
+            return asyncio.run(C._grab(self.URL))
+
+    def test_http_403_falls_back_to_browser(self) -> None:
+        async def _http(_url):
+            return {"status": 403, "html": "Access Denied" * 20}
+
+        async def _browser(_url):
+            return {"status": 200, "html": "<html><body>" + "consumer product safety " * 30 + "</body></html>"}
+
+        out = self._grab_with(_http, _browser)
+        self.assertTrue(out["ok"])
+        self.assertEqual(out["channel"], "browser")
+        self.assertGreater(len(out["text"]), 240)
+
+    def test_empty_spa_falls_back_to_browser(self) -> None:
+        async def _http(_url):
+            return {"status": 200, "html": "<html><body><div id='app'></div></body></html>"}
+
+        async def _browser(_url):
+            return {"status": 200, "html": "<html><body>" + "harmonized tariff schedule " * 30 + "</body></html>"}
+
+        out = self._grab_with(_http, _browser)
+        self.assertTrue(out["ok"])
+        self.assertEqual(out["channel"], "browser")
+
+    def test_both_channels_failing_reports_both_reasons(self) -> None:
+        async def _http(_url):
+            return {"status": 403, "html": "Access Denied" * 20}
+
+        async def _browser(_url):
+            raise RuntimeError("chromium crashed")
+
+        out = self._grab_with(_http, _browser)
+        self.assertFalse(out["ok"])
+        self.assertIn("403", out["error"])
+        self.assertIn("chromium crashed", out["error"])
+
+    def test_robots_denied_never_touches_either_channel(self) -> None:
+        async def _http(_url):
+            raise AssertionError("robots 禁止时不得发起 HTTP 请求")
+
+        async def _browser(_url):
+            raise AssertionError("robots 禁止时不得发起浏览器请求")
+
+        out = self._grab_with(_http, _browser, robots=(False, "Disallow: /"))
+        self.assertFalse(out["ok"])
+        self.assertIn("robots", out["error"])
+
+    def test_prefer_browser_skips_http(self) -> None:
+        async def _http(_url):
+            raise AssertionError("已确认该站需要浏览器时，不应再撞 HTTP")
+
+        async def _browser(_url):
+            return {"status": 200, "html": "<html><body>" + "proposition 65 warning " * 30 + "</body></html>"}
+
+        async def _robots(_url):
+            return (True, "ok")
+
+        with mock.patch.object(C, "robots_allowed", _robots), \
+                mock.patch.object(C, "fetch_http", _http), \
+                mock.patch.object(C, "fetch_browser", _browser):
+            out = asyncio.run(C._grab(self.URL, prefer_browser=True))
+        self.assertTrue(out["ok"])
+        self.assertEqual(out["channel"], "browser")

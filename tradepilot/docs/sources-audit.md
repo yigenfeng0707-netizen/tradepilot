@@ -134,6 +134,40 @@ def _looks_blocked(html: str) -> bool:
 
 ---
 
+## 4.1 合规官方站：HTTP 与浏览器的通道差异（2026-10-31 实测）
+
+**问题**：合规体检原实现只走 `fetch_http`，导致 9 轮评测里 `live_verified` 全部为 **0/4**——
+"逐条对官方来源定位条款正文"变成了空承诺。逐条复现后，根因是入口页本身取不到正文：
+
+| 官方站 | HTTP 直连 | 浏览器通道 |
+|---|---|---|
+| `www.cpsc.gov` | **403 Access Denied** | 200 / 9,384 字 |
+| `www.fda.gov/animal-veterinary` | **404**（10 字节） | 200 / 8,531 字 |
+| `www.fcc.gov` / `www.phmsa.dot.gov` | **403** | — |
+| `hts.usitc.gov` | 200 但正文 **0 字**（JS 单页应用） | 200 / 17,282 字 |
+| `oehha.ca.gov/proposition-65` | 200 但命中 **Incapsula** 拦截页 | 200（有正文） |
+| `helpcenter.aliexpress.com` | 200 但正文 92 字（SPA 空壳） | 200（仍有正文，未定位到条款句） |
+
+**改后**（`app/tools/compliance.py:_grab`）：HTTP 不可用（非 200 / 空壳 / 拦截页 / 异常）时
+自动降级浏览器再试一次；入口页一旦证实需要浏览器，同域深页直接走浏览器。
+`channel` 字段随条款一起进存证。
+
+**证据可读性**（第二层修复）：只修通道会得到"命中"，但命中片段全是页脚——
+实测三条官方页的"证据"分别是 `Careers at OEHHA Join Our Listservs Contact Us`、
+`HTS Help Guide Interactive HTS Training`。这是**假验证**，比 0 命中更糟。
+因此 `locate_clause` 现在只接受通过正文判定的句子：12–90 词、不含页脚特征词、
+Title Case 占比 ≤45%，并允许"相邻两句"作为窗口（条款常拆成两句表述）。
+修后 pet 命中 1/4、home 命中 2/4，证据均为可读条款句，例如：
+
+> Proposition 65 requires the state to maintain and update the list of chemicals subject to the law's requirements.
+
+**诚实边界**：仍会有条款停在 `page_only`（如 HTS 全站是 SPA，条款句在交互界面里），
+此时如实标"已取得正文但未定位到条款原文"，不降级成"已验证"。
+
+---
+
+
+
 ## 5. 品类相关性：改前 / 改后
 
 ### 5.1 改前（单层"包含任一 token"）

@@ -12,10 +12,43 @@
 """
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from .. import llm, provenance
 from .executor import ToolOutcome
+
+# 目标站语言校验：英文站出现中文字符即不合格。
+# 实测：不传目标站语言时，模型会整段用中文写美国站五点（标题却是英文），
+# 审计判 critical「目标站语言残留」——语言必须是硬约束，不能只写在提示词里。
+_CJK_RE = re.compile(r"[\u4e00-\u9fff]")
+
+
+def copy_language_issue(copy: dict[str, Any], marketplace: str) -> str | None:
+    """返回语言问题描述；合格返回 None。"""
+    if marketplace not in ("US", "UK"):
+        return None
+    blob = " ".join(
+        [str(copy.get("title") or "")]
+        + [str(b) for b in (copy.get("bullets") or [])]
+        + [str(copy.get("description") or "")]
+    )
+    hit = _CJK_RE.search(blob)
+    if hit:
+        return f"出现中文字符「{hit.group(0)}」，{marketplace} 站要求全英文"
+    return None
+
+
+def normalize_copy(copy: dict[str, Any]) -> dict[str, Any]:
+    """结构归一：五点最多 5 条（平台硬上限），空条目丢弃。
+
+    为什么在工具侧做而不是让审计扣分：审计是**独立检查**，不该兼任修补；
+    能确定性修正的结构问题（条目数）在生成侧修掉，语义问题留给审计判。
+    """
+    out = dict(copy)
+    bullets = [b for b in (copy.get("bullets") or []) if str(b).strip()]
+    out["bullets"] = bullets[:5]
+    return out
 
 # 骨架模板：只写不需要产品参数就能成立的话，参数一律留占位符
 SKELETON_BULLETS = [
@@ -101,10 +134,21 @@ async def run(tool_input: dict[str, Any]) -> ToolOutcome:
 
     generated_by = "template"
     copy = None
+    lang_issue: str | None = None
     if llm.available():
-        copy = await llm.write_listing(goal, facts)
+        copy = await llm.write_listing(goal, facts, marketplace=marketplace)
         if copy:
+            lang_issue = copy_language_issue(copy, marketplace)
+            if lang_issue:                      # 语言不合格：带着原因重试一次
+                copy = await llm.write_listing(goal, facts, marketplace=marketplace,
+                                               language_note=lang_issue)
+                lang_issue = copy_language_issue(copy, marketplace) if copy else (
+                    lang_issue or "重试未返回内容")
+        if copy and not lang_issue:
+            copy = normalize_copy(copy)
             generated_by = "llm(基于存证事实；价格等数字以服务端回填为准)"
+        else:
+            copy = None                         # 两次都不合格 → 退回合规骨架，不硬发
     if copy is None:
         # 标题以关键词层给出的核心英文词开头（A9：前 80 字符权重最高），
         # 具体规格仍留占位符——观测到的竞品属性词不能当成本品参数
@@ -119,7 +163,8 @@ async def run(tool_input: dict[str, Any]) -> ToolOutcome:
                 "from the mission report and are not part of the customer-facing copy."
             ),
         }
-        generated_by = "template(合规骨架；[ADD] 处需卖家补齐规格)"
+        generated_by = ("template(合规骨架；[ADD] 处需卖家补齐规格)"
+                        + (f"；LLM 文案未通过语言校验：{lang_issue}" if lang_issue else ""))
     if search_terms:
         copy["search_terms"] = search_terms
 

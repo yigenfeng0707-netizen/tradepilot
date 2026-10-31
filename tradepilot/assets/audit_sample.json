@@ -1,395 +1,585 @@
 [
  {
-  "provenance_id": 183,
-  "kind": "policy",
-  "url": "https://hts.usitc.gov",
-  "fetched_at": "2026-10-28T05:13:36+00:00",
-  "payload": {
-   "item": "出口美国须按 HTS 编码申报关税（电子产品税率普遍 0–5%）",
-   "live": {
-    "http_status": 200,
-    "live": true,
-    "bytes": 11057
-   }
-  }
- },
- {
-  "provenance_id": 177,
-  "kind": "item",
-  "url": "https://search.dangdang.com/?key=usb+c+cable&act=input",
-  "fetched_at": "2026-10-28T05:12:21+00:00",
-  "payload": {
-   "title": "飞科(FLYCO) 男士电动剃须刀全身水洗干湿双剃刮胡刀便携式双刀头胡须刀USB Typc-C充电FS889",
-   "price": 180.0,
-   "source_url": "https://search.dangdang.com/?key=usb+c+cable&act=input",
-   "currency": "CNY",
-   "source": "dangdang"
-  }
- },
- {
-  "provenance_id": 171,
-  "kind": "policy",
-  "url": "https://helpcenter.aliexpress.com",
-  "fetched_at": "2026-10-28T05:10:12+00:00",
-  "payload": {
-   "item": "速卖通电子/电器品类发布规则与禁限售清单（平台侧合规基线）",
-   "live": {
-    "http_status": 200,
-    "live": true,
-    "bytes": 13830
-   }
-  }
- },
- {
-  "provenance_id": 165,
-  "kind": "item",
-  "url": "https://search.dangdang.com/?key=usb+c+cable&act=input",
-  "fetched_at": "2026-10-28T05:08:38+00:00",
-  "payload": {
-   "title": "Type-C插头安卓手机数据线 平板电脑尼龙编织USB充电线 1米 通用华为小米三星oppo vivo",
-   "price": 31.0,
-   "source_url": "https://search.dangdang.com/?key=usb+c+cable&act=input",
-   "currency": "CNY",
-   "source": "dangdang"
-  }
- },
- {
-  "provenance_id": 159,
-  "kind": "policy",
-  "url": "https://helpcenter.aliexpress.com",
-  "fetched_at": "2026-10-28T05:07:12+00:00",
-  "payload": {
-   "item": "速卖通家居品类发布规则与禁限售清单（平台侧合规基线）",
-   "live": {
-    "http_status": 200,
-    "live": true,
-    "bytes": 13830
-   }
-  }
- },
- {
-  "provenance_id": 153,
-  "kind": "item",
-  "url": "https://search.dangdang.com/?key=wall+clock&act=input",
-  "fetched_at": "2026-10-28T05:06:22+00:00",
-  "payload": {
-   "title": "我爱乐理3基础教材英皇乐理知识基儿童乐理幼儿乐理入门儿童趣味乐理 基础教程幼儿乐理练习册入门书籍自学零基础题",
-   "price": 20.6,
-   "source_url": "https://search.dangdang.com/?key=wall+clock&act=input",
-   "currency": "CNY",
-   "source": "dangdang"
-  }
- },
- {
-  "provenance_id": 147,
-  "kind": "policy",
-  "url": "https://helpcenter.aliexpress.com",
-  "fetched_at": "2026-10-28T05:04:49+00:00",
-  "payload": {
-   "item": "速卖通家居品类发布规则与禁限售清单（平台侧合规基线）",
-   "live": {
-    "http_status": 200,
-    "live": true,
-    "bytes": 13830
-   }
-  }
- },
- {
-  "provenance_id": 141,
-  "kind": "item",
-  "url": "https://search.dangdang.com/?key=wall+clock&act=input",
-  "fetched_at": "2026-10-28T05:03:53+00:00",
-  "payload": {
-   "title": "我爱乐理3基础教材英皇乐理知识基儿童乐理幼儿乐理入门儿童趣味乐理 基础教程幼儿乐理练习册入门书籍自学零基础题",
-   "price": 20.6,
-   "source_url": "https://search.dangdang.com/?key=wall+clock&act=input",
-   "currency": "CNY",
-   "source": "dangdang"
-  }
- },
- {
-  "provenance_id": 135,
-  "kind": "policy",
-  "url": "https://helpcenter.aliexpress.com",
-  "fetched_at": "2026-10-28T05:01:29+00:00",
-  "payload": {
-   "item": "速卖通宠物用品品类发布规则与禁限售清单（平台侧合规基线）",
-   "live": {
-    "http_status": 200,
-    "live": true,
-    "bytes": 13830
-   }
-  }
- },
- {
-  "provenance_id": 129,
-  "kind": "item",
-  "url": "https://search.dangdang.com/?key=dog+bed&act=input",
-  "fetched_at": "2026-10-28T04:59:24+00:00",
-  "payload": {
-   "title": "【3-6周达】Buster the Noodle Head Dog Goes to Bed [ISBN:97814808",
-   "price": 142.0,
-   "source_url": "https://search.dangdang.com/?key=dog+bed&act=input",
-   "currency": "CNY",
-   "source": "dangdang"
-  }
- },
- {
-  "provenance_id": 123,
-  "kind": "policy",
-  "url": "https://helpcenter.aliexpress.com",
-  "fetched_at": "2026-10-28T04:57:43+00:00",
-  "payload": {
-   "item": "速卖通宠物用品品类发布规则与禁限售清单（平台侧合规基线）",
-   "live": {
-    "http_status": 200,
-    "live": true,
-    "bytes": 13830
-   }
-  }
- },
- {
   "provenance_id": 117,
-  "kind": "item",
-  "url": "https://search.dangdang.com/?key=dog+bed&act=input",
-  "fetched_at": "2026-10-28T04:56:17+00:00",
-  "payload": {
-   "title": "【3-6周达】Buster the Noodle Head Dog Goes to Bed [ISBN:97814808",
-   "price": 142.0,
-   "source_url": "https://search.dangdang.com/?key=dog+bed&act=input",
-   "currency": "CNY",
-   "source": "dangdang"
-  }
- },
- {
-  "provenance_id": 111,
   "kind": "fx",
   "url": "https://api.frankfurter.dev/v1/latest?base=USD&symbols=CNY",
-  "fetched_at": "2026-10-28T01:17:33+00:00",
+  "fetched_at": "2026-10-31T04:47:27+00:00",
+  "content_hash": "b901529c4a598f4f",
   "payload": {
    "base": "USD",
    "quote": "CNY",
-   "rate": 6.6675
-  }
+   "rate": 6.6529
+  },
+  "human_verified": null,
+  "human_note": ""
  },
  {
-  "provenance_id": 105,
+  "provenance_id": 115,
+  "kind": "policy",
+  "url": "https://www.phmsa.dot.gov/training/hazmat/hazardous-materials-outreach-engagement",
+  "fetched_at": "2026-10-31T04:46:59+00:00",
+  "content_hash": "20cca017b194fc83",
+  "payload": {
+   "item": "锂电池产品运输受 UN38.3 与危险品规则约束（瓦时数标注、包装指令）",
+   "authority": "U.S. DOT PHMSA",
+   "kind": "authority",
+   "verification": "clause_matched",
+   "matched_terms": [
+    "lithium battery",
+    "lithium"
+   ],
+   "excerpt": "Lithium Battery Guide for Shippers This compliance resource was prepared to assist shippers to safely package lithium cells and batteries for transport by all modes according to the latest (May 11, 2020; HM-215O) regulatory requirements.",
+   "http_status": 200,
+   "entry_url": "https://www.phmsa.dot.gov",
+   "channel": "browser",
+   "fetch_error": null
+  },
+  "human_verified": null,
+  "human_note": ""
+ },
+ {
+  "provenance_id": 113,
   "kind": "policy",
   "url": "https://helpcenter.aliexpress.com",
-  "fetched_at": "2026-10-28T01:13:34+00:00",
+  "fetched_at": "2026-10-31T04:46:01+00:00",
+  "content_hash": "a0600d0c5477accd",
   "payload": {
-   "item": "速卖通家居品类发布规则与禁限售清单（平台侧合规基线）",
-   "live": {
-    "http_status": 200,
-    "live": true,
-    "bytes": 13830
-   }
-  }
+   "item": "速卖通电子/电器品类发布规则与禁限售清单（平台侧合规基线）",
+   "authority": "AliExpress 规则中心",
+   "kind": "platform",
+   "verification": "page_only",
+   "matched_terms": [],
+   "excerpt": null,
+   "http_status": 200,
+   "entry_url": "https://helpcenter.aliexpress.com",
+   "channel": "browser",
+   "fetch_error": null
+  },
+  "human_verified": null,
+  "human_note": ""
  },
  {
-  "provenance_id": 99,
+  "provenance_id": 108,
   "kind": "item",
-  "url": "https://search.dangdang.com/?key=wall+clock&act=input",
-  "fetched_at": "2026-10-28T01:12:07+00:00",
+  "url": "https://www.newegg.com/p/181-01VU-001B9",
+  "fetched_at": "2026-10-31T04:38:59+00:00",
+  "content_hash": "d16ccc16eadf9d3f",
   "payload": {
-   "title": "我爱乐理3基础教材英皇乐理知识基儿童乐理幼儿乐理入门儿童趣味乐理 基础教程幼儿乐理练习册入门书籍自学零基础题",
-   "price": 20.6,
-   "source_url": "https://search.dangdang.com/?key=wall+clock&act=input",
-   "currency": "CNY",
-   "source": "dangdang"
-  }
+   "title": "LUOM 80Gbps Thunderbolt 5 Cable USB C to USB C 6.6ft - Type C Cable 240W Fast Charging, HD Display Cables Support 16K@60",
+   "price": 41.48,
+   "source_url": "https://www.newegg.com/p/181-01VU-001B9",
+   "currency": "USD",
+   "source": "newegg",
+   "search_url": "https://www.newegg.com/p/pl?d=usb+c+cable",
+   "scan_provenance_id": 100
+  },
+  "human_verified": null,
+  "human_note": ""
  },
  {
-  "provenance_id": 93,
+  "provenance_id": 106,
+  "kind": "item",
+  "url": "https://www.newegg.com/p/N82E16812356245",
+  "fetched_at": "2026-10-31T04:38:59+00:00",
+  "content_hash": "b59ae821e28c409a",
+  "payload": {
+   "title": "Nippon Labs 20USBCGEN2-6MM-G 6ft USB Type C 3.1 (G2) Male to USB-C Male Cable 10Gbps with Built-in E-Marker - Black",
+   "price": 17.99,
+   "source_url": "https://www.newegg.com/p/N82E16812356245",
+   "currency": "USD",
+   "source": "newegg",
+   "search_url": "https://www.newegg.com/p/pl?d=usb+c+cable",
+   "scan_provenance_id": 100
+  },
+  "human_verified": null,
+  "human_note": ""
+ },
+ {
+  "provenance_id": 104,
+  "kind": "item",
+  "url": "https://www.newegg.com/anker-6-ft-usb-c-to-usb-c-black/p/364-0017-000G5",
+  "fetched_at": "2026-10-31T04:38:59+00:00",
+  "content_hash": "75295d04b12e2aed",
+  "payload": {
+   "title": "Anker 333 USB C to USB C Cable (6ft 100W, 2-Pack), USB 2.0 Type C Charging Cable Fast Charge for MacBook Pro 2020, iPad ",
+   "price": 9.99,
+   "source_url": "https://www.newegg.com/anker-6-ft-usb-c-to-usb-c-black/p/364-0017-000G5",
+   "currency": "USD",
+   "source": "newegg",
+   "search_url": "https://www.newegg.com/p/pl?d=usb+c+cable",
+   "scan_provenance_id": 100
+  },
+  "human_verified": null,
+  "human_note": ""
+ },
+ {
+  "provenance_id": 102,
+  "kind": "item",
+  "url": "https://www.newegg.com/anker-10-feet-usb-cable-black/p/0S8-014F-00235",
+  "fetched_at": "2026-10-31T04:38:59+00:00",
+  "content_hash": "dac322b5e8800cbe",
+  "payload": {
+   "title": "Anker USB C Cable 100W 10ft, New Nylon USB C to USB C Cable 2.0, Type C Charging Cable Fast Charge for MacBook Pro 2020,",
+   "price": 9.99,
+   "source_url": "https://www.newegg.com/anker-10-feet-usb-cable-black/p/0S8-014F-00235",
+   "currency": "USD",
+   "source": "newegg",
+   "search_url": "https://www.newegg.com/p/pl?d=usb+c+cable",
+   "scan_provenance_id": 100
+  },
+  "human_verified": null,
+  "human_note": ""
+ },
+ {
+  "provenance_id": 96,
+  "kind": "policy",
+  "url": "https://hts.usitc.gov",
+  "fetched_at": "2026-10-31T04:35:36+00:00",
+  "content_hash": "5a80716beadace7c",
+  "payload": {
+   "item": "出口美国须按 HTS 编码申报关税（电子产品税率普遍 0–5%）",
+   "authority": "USITC HTS",
+   "kind": "authority",
+   "verification": "page_only",
+   "matched_terms": [],
+   "excerpt": null,
+   "http_status": 200,
+   "entry_url": "https://hts.usitc.gov",
+   "channel": "browser",
+   "fetch_error": null
+  },
+  "human_verified": null,
+  "human_note": ""
+ },
+ {
+  "provenance_id": 94,
+  "kind": "policy",
+  "url": "https://www.fcc.gov",
+  "fetched_at": "2026-10-31T04:34:15+00:00",
+  "content_hash": "e8a422e44ef75f69",
+  "payload": {
+   "item": "无线/蓝牙类设备须 FCC 合规（SDoC 或认证，FCC ID 标注）",
+   "authority": "U.S. FCC",
+   "kind": "authority",
+   "verification": "page_only",
+   "matched_terms": [],
+   "excerpt": null,
+   "http_status": 200,
+   "entry_url": "https://www.fcc.gov",
+   "channel": "browser",
+   "fetch_error": null
+  },
+  "human_verified": null,
+  "human_note": ""
+ },
+ {
+  "provenance_id": 92,
+  "kind": "fx",
+  "url": "https://api.frankfurter.dev/v1/latest?base=USD&symbols=CNY",
+  "fetched_at": "2026-10-31T04:30:32+00:00",
+  "content_hash": "b901529c4a598f4f",
+  "payload": {
+   "base": "USD",
+   "quote": "CNY",
+   "rate": 6.6529
+  },
+  "human_verified": null,
+  "human_note": ""
+ },
+ {
+  "provenance_id": 90,
+  "kind": "policy",
+  "url": "https://www.phmsa.dot.gov/training/hazmat/hazardous-materials-outreach-engagement",
+  "fetched_at": "2026-10-31T04:29:49+00:00",
+  "content_hash": "20cca017b194fc83",
+  "payload": {
+   "item": "锂电池产品运输受 UN38.3 与危险品规则约束（瓦时数标注、包装指令）",
+   "authority": "U.S. DOT PHMSA",
+   "kind": "authority",
+   "verification": "clause_matched",
+   "matched_terms": [
+    "lithium battery",
+    "lithium"
+   ],
+   "excerpt": "Lithium Battery Guide for Shippers This compliance resource was prepared to assist shippers to safely package lithium cells and batteries for transport by all modes according to the latest (May 11, 2020; HM-215O) regulatory requirements.",
+   "http_status": 200,
+   "entry_url": "https://www.phmsa.dot.gov",
+   "channel": "browser",
+   "fetch_error": null
+  },
+  "human_verified": null,
+  "human_note": ""
+ },
+ {
+  "provenance_id": 88,
   "kind": "policy",
   "url": "https://helpcenter.aliexpress.com",
-  "fetched_at": "2026-10-28T01:10:09+00:00",
+  "fetched_at": "2026-10-31T04:28:26+00:00",
+  "content_hash": "a0600d0c5477accd",
   "payload": {
-   "item": "速卖通家居品类发布规则与禁限售清单（平台侧合规基线）",
-   "live": {
-    "http_status": 200,
-    "live": true,
-    "bytes": 13830
-   }
-  }
+   "item": "速卖通电子/电器品类发布规则与禁限售清单（平台侧合规基线）",
+   "authority": "AliExpress 规则中心",
+   "kind": "platform",
+   "verification": "page_only",
+   "matched_terms": [],
+   "excerpt": null,
+   "http_status": 200,
+   "entry_url": "https://helpcenter.aliexpress.com",
+   "channel": "browser",
+   "fetch_error": null
+  },
+  "human_verified": null,
+  "human_note": ""
  },
  {
-  "provenance_id": 87,
+  "provenance_id": 83,
   "kind": "item",
-  "url": "https://search.dangdang.com/?key=wall+clock&act=input",
-  "fetched_at": "2026-10-28T01:08:46+00:00",
+  "url": "https://www.newegg.com/anker-6-ft-usb-cable-black/p/0S8-014F-001W8",
+  "fetched_at": "2026-10-31T04:26:48+00:00",
+  "content_hash": "4da16c5590576224",
   "payload": {
-   "title": "我爱乐理3基础教材英皇乐理知识基儿童乐理幼儿乐理入门儿童趣味乐理 基础教程幼儿乐理练习册入门书籍自学零基础题",
-   "price": 20.6,
-   "source_url": "https://search.dangdang.com/?key=wall+clock&act=input",
-   "currency": "CNY",
-   "source": "dangdang"
-  }
+   "title": "Anker Cable [2 Pack 6ft], USB A to USB C Cable for iPhone 17 Series,Samsung Galaxy S10 S10+, LG V30, Beats Fit Pro and M",
+   "price": 9.99,
+   "source_url": "https://www.newegg.com/anker-6-ft-usb-cable-black/p/0S8-014F-001W8",
+   "currency": "USD",
+   "source": "newegg",
+   "search_url": "https://www.newegg.com/p/pl?d=usb+c+cable",
+   "scan_provenance_id": 76
+  },
+  "human_verified": null,
+  "human_note": ""
  },
  {
   "provenance_id": 81,
-  "kind": "policy",
-  "url": "https://helpcenter.aliexpress.com",
-  "fetched_at": "2026-10-28T01:05:48+00:00",
-  "payload": {
-   "item": "速卖通宠物用品品类发布规则与禁限售清单（平台侧合规基线）",
-   "live": {
-    "http_status": 200,
-    "live": true,
-    "bytes": 13830
-   }
-  }
- },
- {
-  "provenance_id": 75,
   "kind": "item",
-  "url": "https://search.dangdang.com/?key=dog+bed&act=input",
-  "fetched_at": "2026-10-28T01:03:50+00:00",
+  "url": "https://www.newegg.com/anker-6-feet-usb-cable-black/p/0S8-014F-00212",
+  "fetched_at": "2026-10-31T04:26:48+00:00",
+  "content_hash": "8e21edf85bc16616",
   "payload": {
-   "title": "【3-6周达】Buster the Noodle Head Dog Goes to Bed [ISBN:97814808",
-   "price": 142.0,
-   "source_url": "https://search.dangdang.com/?key=dog+bed&act=input",
-   "currency": "CNY",
-   "source": "dangdang"
-  }
+   "title": "USB C Cable, Anker 2 Pack New Nylon USB C to USB C Cable (6ft 60W), PD Type C Charging Cable for MacBook Pro 2020, iPad ",
+   "price": 9.99,
+   "source_url": "https://www.newegg.com/anker-6-feet-usb-cable-black/p/0S8-014F-00212",
+   "currency": "USD",
+   "source": "newegg",
+   "search_url": "https://www.newegg.com/p/pl?d=usb+c+cable",
+   "scan_provenance_id": 76
+  },
+  "human_verified": null,
+  "human_note": ""
  },
  {
-  "provenance_id": 69,
-  "kind": "policy",
-  "url": "https://helpcenter.aliexpress.com",
-  "fetched_at": "2026-10-28T01:00:04+00:00",
+  "provenance_id": 79,
+  "kind": "item",
+  "url": "https://www.newegg.com/p/181-0783-00042",
+  "fetched_at": "2026-10-31T04:26:48+00:00",
+  "content_hash": "86e49c4114559d24",
   "payload": {
-   "item": "速卖通宠物用品品类发布规则与禁限售清单（平台侧合规基线）",
-   "live": {
-    "http_status": 200,
-    "live": true,
-    "bytes": 13830
-   }
-  }
+   "title": "Hannord USB4 Cable Compatible with Thunderbolt 4/3 Cable, Supports 240W Charging / 8K Display / 40Gbps Data Transfer USB",
+   "price": 15.29,
+   "source_url": "https://www.newegg.com/p/181-0783-00042",
+   "currency": "USD",
+   "source": "newegg",
+   "search_url": "https://www.newegg.com/p/pl?d=usb+c+cable",
+   "scan_provenance_id": 76
+  },
+  "human_verified": null,
+  "human_note": ""
+ },
+ {
+  "provenance_id": 77,
+  "kind": "item",
+  "url": "https://www.newegg.com/p/181-00KG-000K0",
+  "fetched_at": "2026-10-31T04:26:48+00:00",
+  "content_hash": "2b55e336c8775664",
+  "payload": {
+   "title": "Anker USB C to USB C Cable, Type-C 60W Fast Charging Cable (6FT, 5Pack) for iPhone 16 Series, iPad mini 6 and More (Blac",
+   "price": 18.99,
+   "source_url": "https://www.newegg.com/p/181-00KG-000K0",
+   "currency": "USD",
+   "source": "newegg",
+   "search_url": "https://www.newegg.com/p/pl?d=usb+c+cable",
+   "scan_provenance_id": 76
+  },
+  "human_verified": null,
+  "human_note": ""
+ },
+ {
+  "provenance_id": 74,
+  "kind": "policy",
+  "url": "https://hts.usitc.gov",
+  "fetched_at": "2026-10-31T04:22:43+00:00",
+  "content_hash": "5a80716beadace7c",
+  "payload": {
+   "item": "出口美国须按 HTS 编码申报关税（家居品类）",
+   "authority": "USITC HTS",
+   "kind": "authority",
+   "verification": "page_only",
+   "matched_terms": [],
+   "excerpt": null,
+   "http_status": 200,
+   "entry_url": "https://hts.usitc.gov",
+   "channel": "browser",
+   "fetch_error": null
+  },
+  "human_verified": null,
+  "human_note": ""
+ },
+ {
+  "provenance_id": 72,
+  "kind": "policy",
+  "url": "https://www.cpsc.gov",
+  "fetched_at": "2026-10-31T04:22:05+00:00",
+  "content_hash": "6c4632e7fd9d2396",
+  "payload": {
+   "item": "家居消费品须满足 CPSC 强制标准与召回通报义务（CPSIA 铅含量、小零件等）",
+   "authority": "U.S. CPSC",
+   "kind": "authority",
+   "verification": "clause_matched",
+   "matched_terms": [
+    "safety",
+    "recall"
+   ],
+   "excerpt": "CPSC’s toy lab tests all kinds of toys to see if they meet safety standards or should be recalled.",
+   "http_status": 200,
+   "entry_url": "https://www.cpsc.gov",
+   "channel": "browser",
+   "fetch_error": null
+  },
+  "human_verified": null,
+  "human_note": ""
+ },
+ {
+  "provenance_id": 67,
+  "kind": "item",
+  "url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
+  "fetched_at": "2026-10-31T04:19:58+00:00",
+  "content_hash": "bbe89b398f7e65e8",
+  "payload": {
+   "title": "挂钟家用免打孔创意客厅餐厅新中式时钟简约吉祥福挂墙钟表wa8",
+   "price": 117.0,
+   "source_url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
+   "currency": "CNY",
+   "source": "dangdang",
+   "search_url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
+   "scan_provenance_id": 62
+  },
+  "human_verified": null,
+  "human_note": ""
+ },
+ {
+  "provenance_id": 65,
+  "kind": "item",
+  "url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
+  "fetched_at": "2026-10-31T04:19:58+00:00",
+  "content_hash": "e7181d01d7ecb69a",
+  "payload": {
+   "title": "挂钟客厅钟表简约北欧时尚家用时钟挂表自动对时电波钟7xo",
+   "price": 224.0,
+   "source_url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
+   "currency": "CNY",
+   "source": "dangdang",
+   "search_url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
+   "scan_provenance_id": 62
+  },
+  "human_verified": null,
+  "human_note": ""
  },
  {
   "provenance_id": 63,
   "kind": "item",
-  "url": "https://search.dangdang.com/?key=dog+bed&act=input",
-  "fetched_at": "2026-10-28T00:59:21+00:00",
+  "url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
+  "fetched_at": "2026-10-31T04:19:58+00:00",
+  "content_hash": "be1863cfd72954eb",
   "payload": {
-   "title": "【3-6周达】Buster the Noodle Head Dog Goes to Bed [ISBN:97814808",
-   "price": 142.0,
-   "source_url": "https://search.dangdang.com/?key=dog+bed&act=input",
+   "title": "挂钟现代简约轻奢个性创意钟表家用客厅时尚装饰挂墙静音艺术时钟wa8",
+   "price": 77.0,
+   "source_url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
    "currency": "CNY",
-   "source": "dangdang"
-  }
+   "source": "dangdang",
+   "search_url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
+   "scan_provenance_id": 62
+  },
+  "human_verified": null,
+  "human_note": ""
  },
  {
-  "provenance_id": 57,
+  "provenance_id": 60,
   "kind": "policy",
   "url": "https://hts.usitc.gov",
-  "fetched_at": "2026-10-28T00:57:00+00:00",
+  "fetched_at": "2026-10-31T04:16:35+00:00",
+  "content_hash": "5a80716beadace7c",
   "payload": {
    "item": "出口美国须按 HTS 编码申报关税（家居品类）",
-   "live": {
-    "http_status": 200,
-    "live": true,
-    "bytes": 11057
-   }
-  }
+   "authority": "USITC HTS",
+   "kind": "authority",
+   "verification": "page_only",
+   "matched_terms": [],
+   "excerpt": null,
+   "http_status": 200,
+   "entry_url": "https://hts.usitc.gov",
+   "channel": "browser",
+   "fetch_error": null
+  },
+  "human_verified": null,
+  "human_note": ""
  },
  {
-  "provenance_id": 51,
-  "kind": "fx",
-  "url": "https://api.frankfurter.dev/v1/latest?base=USD&symbols=CNY",
-  "fetched_at": "2026-10-28T00:50:37+00:00",
+  "provenance_id": 58,
+  "kind": "policy",
+  "url": "https://www.cpsc.gov",
+  "fetched_at": "2026-10-31T04:16:01+00:00",
+  "content_hash": "6c4632e7fd9d2396",
   "payload": {
-   "base": "USD",
-   "quote": "CNY",
-   "rate": 6.6675
-  }
+   "item": "家居消费品须满足 CPSC 强制标准与召回通报义务（CPSIA 铅含量、小零件等）",
+   "authority": "U.S. CPSC",
+   "kind": "authority",
+   "verification": "clause_matched",
+   "matched_terms": [
+    "safety",
+    "recall"
+   ],
+   "excerpt": "CPSC’s toy lab tests all kinds of toys to see if they meet safety standards or should be recalled.",
+   "http_status": 200,
+   "entry_url": "https://www.cpsc.gov",
+   "channel": "browser",
+   "fetch_error": null
+  },
+  "human_verified": null,
+  "human_note": ""
  },
  {
-  "provenance_id": 45,
+  "provenance_id": 56,
   "kind": "item",
-  "url": "https://search.dangdang.com/?key=dog+bed&act=input",
-  "fetched_at": "2026-10-28T00:50:15+00:00",
+  "url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
+  "fetched_at": "2026-10-31T04:15:13+00:00",
+  "content_hash": "acee244667c5db18",
   "payload": {
-   "title": "按需印刷Buster the Noodle Head Dog Goes to Bed",
-   "price": 116.0,
-   "source_url": "https://search.dangdang.com/?key=dog+bed&act=input",
+   "title": "挂钟家用免打孔创意客厅餐厅新中式时钟简约吉祥福挂墙钟表wa8",
+   "price": 117.0,
+   "source_url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
    "currency": "CNY",
-   "source": "dangdang"
-  }
+   "source": "dangdang",
+   "search_url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
+   "scan_provenance_id": 51
+  },
+  "human_verified": null,
+  "human_note": ""
+ },
+ {
+  "provenance_id": 54,
+  "kind": "item",
+  "url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
+  "fetched_at": "2026-10-31T04:15:12+00:00",
+  "content_hash": "090ab61b256fa76a",
+  "payload": {
+   "title": "挂钟客厅钟表简约北欧时尚家用时钟挂表自动对时电波钟7xo",
+   "price": 224.0,
+   "source_url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
+   "currency": "CNY",
+   "source": "dangdang",
+   "search_url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
+   "scan_provenance_id": 51
+  },
+  "human_verified": null,
+  "human_note": ""
+ },
+ {
+  "provenance_id": 52,
+  "kind": "item",
+  "url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
+  "fetched_at": "2026-10-31T04:15:12+00:00",
+  "content_hash": "9d2e698f52c41666",
+  "payload": {
+   "title": "挂钟现代简约轻奢个性创意钟表家用客厅时尚装饰挂墙静音艺术时钟wa8",
+   "price": 77.0,
+   "source_url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
+   "currency": "CNY",
+   "source": "dangdang",
+   "search_url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
+   "scan_provenance_id": 51
+  },
+  "human_verified": null,
+  "human_note": ""
+ },
+ {
+  "provenance_id": 46,
+  "kind": "policy",
+  "url": "https://hts.usitc.gov",
+  "fetched_at": "2026-10-31T04:09:49+00:00",
+  "content_hash": "5a80716beadace7c",
+  "payload": {
+   "item": "出口美国须按 HTS 编码申报关税（家居品类）",
+   "authority": "USITC HTS",
+   "kind": "authority",
+   "verification": "page_only",
+   "matched_terms": [],
+   "excerpt": null,
+   "http_status": 200,
+   "entry_url": "https://hts.usitc.gov",
+   "channel": "browser",
+   "fetch_error": null
+  },
+  "human_verified": null,
+  "human_note": ""
+ },
+ {
+  "provenance_id": 44,
+  "kind": "policy",
+  "url": "https://www.cpsc.gov",
+  "fetched_at": "2026-10-31T04:09:07+00:00",
+  "content_hash": "6c4632e7fd9d2396",
+  "payload": {
+   "item": "家居消费品须满足 CPSC 强制标准与召回通报义务（CPSIA 铅含量、小零件等）",
+   "authority": "U.S. CPSC",
+   "kind": "authority",
+   "verification": "clause_matched",
+   "matched_terms": [
+    "safety",
+    "recall"
+   ],
+   "excerpt": "CPSC’s toy lab tests all kinds of toys to see if they meet safety standards or should be recalled.",
+   "http_status": 200,
+   "entry_url": "https://www.cpsc.gov",
+   "channel": "browser",
+   "fetch_error": null
+  },
+  "human_verified": null,
+  "human_note": ""
  },
  {
   "provenance_id": 39,
   "kind": "item",
-  "url": "https://search.dangdang.com/?key=dog+bed&act=input",
-  "fetched_at": "2026-10-28T00:41:43+00:00",
+  "url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
+  "fetched_at": "2026-10-31T04:07:14+00:00",
+  "content_hash": "f235e67911f5bf67",
   "payload": {
-   "title": "【Dog Man 12 精装 单本】 神探狗狗Dog Man英文原版幽默漫画 Cat Kid番外平装 儿童英文图像小说",
-   "price": 73.79,
-   "source_url": "https://search.dangdang.com/?key=dog+bed&act=input",
+   "title": "挂钟家用免打孔创意客厅餐厅新中式时钟简约吉祥福挂墙钟表wa8",
+   "price": 117.0,
+   "source_url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
    "currency": "CNY",
-   "source": "dangdang"
-  }
+   "source": "dangdang",
+   "search_url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
+   "scan_provenance_id": 34
+  },
+  "human_verified": null,
+  "human_note": ""
  },
  {
-  "provenance_id": 33,
-  "kind": "fx",
-  "url": "https://api.frankfurter.dev/v1/latest?base=USD&symbols=CNY",
-  "fetched_at": "2026-10-28T00:38:49+00:00",
-  "payload": {
-   "base": "USD",
-   "quote": "CNY",
-   "rate": 6.6675
-  }
- },
- {
-  "provenance_id": 27,
+  "provenance_id": 37,
   "kind": "item",
-  "url": "https://search.dangdang.com/?key=dog+bed&act=input",
-  "fetched_at": "2026-10-28T00:38:30+00:00",
+  "url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
+  "fetched_at": "2026-10-31T04:07:14+00:00",
+  "content_hash": "d4bf949d5fdff89b",
   "payload": {
-   "title": "按需印刷Buster the Noodle Head Dog Goes to Bed",
-   "price": 116.0,
-   "source_url": "https://search.dangdang.com/?key=dog+bed&act=input",
+   "title": "挂钟客厅钟表简约北欧时尚家用时钟挂表自动对时电波钟7xo",
+   "price": 224.0,
+   "source_url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
    "currency": "CNY",
-   "source": "dangdang"
-  }
- },
- {
-  "provenance_id": 21,
-  "kind": "item",
-  "url": "https://search.dangdang.com/?key=dog+bed&act=input",
-  "fetched_at": "2026-10-28T00:34:01+00:00",
-  "payload": {
-   "title": "【Dog Man 12 精装 单本】 神探狗狗Dog Man英文原版幽默漫画 Cat Kid番外平装 儿童英文图像小说",
-   "price": 73.79,
-   "source_url": "https://search.dangdang.com/?key=dog+bed&act=input",
-   "currency": "CNY",
-   "source": "dangdang"
-  }
- },
- {
-  "provenance_id": 15,
-  "kind": "fx",
-  "url": "https://api.frankfurter.dev/v1/latest?base=USD&symbols=CNY",
-  "fetched_at": "2026-10-27T23:48:45+00:00",
-  "payload": {
-   "base": "USD",
-   "quote": "CNY",
-   "rate": 6.6675
-  }
- },
- {
-  "provenance_id": 9,
-  "kind": "item",
-  "url": "https://search.dangdang.com/?key=dog+bed&act=input",
-  "fetched_at": "2026-10-27T23:48:42+00:00",
-  "payload": {
-   "title": "【3-6周达】The Dog on the Bed: A Canine Alphabet [ISBN:978155455",
-   "price": 259.0,
-   "source_url": "https://search.dangdang.com/?key=dog+bed&act=input",
-   "currency": "CNY",
-   "source": "dangdang"
-  }
+   "source": "dangdang",
+   "search_url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
+   "scan_provenance_id": 34
+  },
+  "human_verified": null,
+  "human_note": ""
  }
 ]

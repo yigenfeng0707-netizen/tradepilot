@@ -57,6 +57,19 @@ ROOT = Path(__file__).resolve().parents[1]
 EVAL_JSON = ROOT / "assets" / "eval_results.json"
 
 
+def _typical_steps(runs: list) -> int:
+    """标准任务实际执行的步数（取各轮中位数）。
+
+    为什么不用 len(STEPS)-1：那是"设计上应该跑几步"，不是"实际跑了几步"。
+    工具被规划器选中与否取决于目标、依赖与 LLM 决策，写死推导值必然与实跑脱节。
+    """
+    vals = sorted(r["steps_done"] for r in runs if isinstance(r.get("steps_done"), int))
+    if not vals:
+        from app.planner import STEPS      # 延迟导入：本模块在裸机上也要能 import
+        return len(STEPS)
+    return vals[len(vals) // 2]
+
+
 def measured_facts() -> dict:
     """BP 里所有数字的唯一来源：评测 JSON + 代码本身，不接受手抄常量。
 
@@ -88,8 +101,10 @@ def measured_facts() -> dict:
         "eval": ev,
         "tools": sorted(build_registry().names()),
         "tool_n": len(STEPS),
-        # 标准任务不跑 opportunity_scan（目标点名"选品/赛道/机会"才抢位），故 -1
-        "steps_standard": len(STEPS) - 1,
+        # 标准任务实际跑几步：从评测数据取中位数，**不按设计意图推断**。
+        # 上一版这里写的是 len(STEPS) - 1，注释断言"标准任务不跑 opportunity_scan"，
+        # 而实测 9 轮全部跑了 8 步——设计意图与真实行为不一致时，以实测为准。
+        "steps_standard": _typical_steps(ev.get("runs") or []),
         "steps": [(s.name, s.purpose) for s in STEPS],
         "mode": ev["meta"].get("mode"),
         "repeats": ev["meta"].get("repeats"),
@@ -204,7 +219,7 @@ def build_bp(output):
     # 三、解决方案
     E += heading("三、解决方案")
     E += para(f"TradePilot 采用「统一执行器 + 工具白名单 + 来源闸门」的单 agent 模式："
-              f"标准任务每个目标产出 {f['steps_standard']} 张决策卡，选品雷达按目标触发，全程留痕。"
+              f"标准任务每个目标产出 {f['steps_standard']} 张决策卡，选品雷达每轮执行但不抢占首步，全程留痕。"
               "下表逐行取自代码里的规划图（`app/planner.py`），不在文档里另立一套：")
     E.append(make_table(
         ["#", "工具", "职责（取自 planner.STEPS，非文档另写）"],
@@ -266,7 +281,8 @@ def build_bp(output):
     labor = f.get("human_baseline") or {}
     labor_line = (f"人工基线：真人掐表 {labor.get('task_time_min')} 分钟（{labor.get('performed_by')}）"
                   if labor.get("task_time_min") else
-                  "人工成本折算：待真人按 docs/eval/人工SOP.md 掐表后计算（方案红线：禁估算）；")
+                  "人工成本折算：待真人按 docs/eval/人工SOP.md 掐表后计算"
+                  "（方案红线：禁估算；`scripts/human_baseline.py timing` 可直接记时并回填）；")
     E += bullets([
         f"步骤成功率与耗时为 {sum(s.get('runs', 0) for s in f['summary'].values())} 轮实测均值；"
         f"累计存证 {f['provenance_totals'].get('total', 0)} 条 / "

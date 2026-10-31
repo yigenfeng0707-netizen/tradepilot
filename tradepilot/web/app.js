@@ -914,7 +914,9 @@ function renderCompliance(step) {
         ${quote}${terms}${block}
         <div class="src">[${kindLabel}] ${escapeHtml(c.authority || "—")}`
       + `${page ? ` · <a href="${escapeHtml(page)}" target="_blank" rel="noopener">${escapeHtml(page)}</a>` : ""}`
-      + `${statusTxt ? ` · ${statusTxt}` : ""} · ${stampId === null ? `<span class="prov-none">本页不可核验，未落存证</span>` : provLink(stampId)}`
+      + `${statusTxt ? ` · ${statusTxt}` : ""}`
+      + `${c.channel ? ` · 通道 ${escapeHtml(c.channel)}` : ""}`
+      + ` · ${stampId === null ? `<span class="prov-none">本页不可核验，未落存证</span>` : provLink(stampId)}`
       + ` · 抓取时间 <span class="ts" data-stamp="${stampId === null ? "" : stampId}"></span></div>
       </div>`;
   }).join("") + `<div class="note">${escapeHtml(d.basis || "")}</div>`;
@@ -1054,6 +1056,7 @@ function decisionCard(card) {
   const keys = Array.isArray(card.input_keys) ? card.input_keys : [];
   const meta = `状态 ${escapeHtml(String(card.status || "—"))}`
     + `${card.gate ? ` · 闸门 ${escapeHtml(String(card.gate))}` : ""}`
+    + `${num(card.step_s) === null ? "" : ` · 本步 ${card.step_s}s`}`
     + `${num(card.elapsed_s) === null ? "" : ` · 累计 ${card.elapsed_s}s`}`
     + `${keys.length ? ` · 入参 ${escapeHtml(keys.slice(0, 8).join(", "))}` : ""}`;
   node.appendChild(el("div", "meta", meta));

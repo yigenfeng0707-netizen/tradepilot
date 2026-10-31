@@ -89,6 +89,13 @@ class Config:
     default_marketplace: str = field(default_factory=lambda: os.environ.get(
         "TRADEPILOT_MARKETPLACE", "US"))
 
+    # 广告搜索词报告（可选）：配置后关键词层挂真实曝光/点击，未配置则降级为代理指标。
+    # 报告周期必须显式给出——没有时间区间的曝光量不可解释。
+    ads_report_path: str = field(default_factory=lambda: os.environ.get(
+        "TRADEPILOT_ADS_REPORT", ""))
+    ads_report_period: str = field(default_factory=lambda: os.environ.get(
+        "TRADEPILOT_ADS_PERIOD", ""))
+
     def db_file(self) -> str:
         if not self.db_path:
             self.db_path = os.path.join(self.data_dir, "provenance.db")

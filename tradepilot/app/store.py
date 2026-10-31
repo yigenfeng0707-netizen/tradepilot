@@ -173,6 +173,13 @@ def export_markdown(report: dict[str, Any]) -> str:
             "> 词表来自真实竞品标题的观测计数（附证据可回访），"
             "不含搜索量/竞争度评分——未接入相应数据源，编造该指标等于假数据。",
         ]
+        evidence = kplan.get("search_term_evidence") or {}
+        if evidence.get("data_source") == "ads_search_term_report":
+            lines.append(
+                f"> 曝光/点击来自广告搜索词报告（周期 {evidence.get('period') or '未标注'}，"
+                f"命中 {evidence.get('matched_terms')} 词）；报告无搜索量字段，故仍不提供。")
+        elif evidence:
+            lines.append(f"> 数据源状态：{evidence.get('data_source')}——{evidence.get('note', '')}")
     else:
         lines.append("（未执行关键词分析）")
 

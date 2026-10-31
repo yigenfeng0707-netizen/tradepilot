@@ -93,3 +93,11 @@ class TestAutonomyMetrics(unittest.TestCase):
             self.assertIn("llm_adopted", card)
             self.assertIn("llm_rejected", card)
             self.assertNotEqual(card["llm_adopted"], card["llm_rejected"])
+
+    def test_step_and_cumulative_time_are_distinct(self) -> None:
+        """本步耗时与累计耗时是两个口径，卡片必须都给，否则会被读成"这步花了 N 秒"。"""
+        report = _run_mission(_follow_rule)
+        for card in report["decisions"]:
+            self.assertIn("step_s", card)
+            self.assertIn("elapsed_s", card)
+            self.assertLessEqual(card["step_s"], card["elapsed_s"] + 0.05)

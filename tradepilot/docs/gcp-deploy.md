@@ -67,7 +67,7 @@ gcloud run deploy $SERVICE \
 
 - `--memory 2Gi`：Chromium 单页约 300–600MB，1Gi 在并发下会 OOM。
 - `--concurrency 4`：抓取被 `per_host_min_interval_s` 与浏览器单线程池串行化，调高只会排队。
-- `--timeout 600`：LLM 模式下单步可能 60–90s，七步链路需要余量。
+- `--timeout 600`：LLM 模式下单步可能 60–90s，八步链路（含选品雷达约 35s）需要余量。
 - `--min-instances 1`：避免演示时冷启动把第一个请求拖到 8s+（有成本，正式上线可设 0）。
 - `--max-instances 3`：见第 5 节，SQLite 不适合横向扩太多。
 

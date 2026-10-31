@@ -26,6 +26,8 @@ import re
 from typing import Any
 
 from .. import provenance
+from ..config import CONFIG
+from ..datasources import ads_report as ads_source
 from .executor import ToolOutcome
 
 # 中文属性词 → 英文关键词（人工维护的编辑性知识；只输出真实观测到的词）
@@ -129,8 +131,13 @@ def _bucket(term: str) -> str:
 
 
 def build(keyword: str, titles: list[str], marketplace: str = "US",
-          max_bytes: int = 250) -> dict[str, Any]:
-    """核心构建函数（纯函数，便于单测）。"""
+          max_bytes: int = 250, ads_report: dict | None = None) -> dict[str, Any]:
+    """核心构建函数（纯函数，便于单测）。
+
+    `ads_report`：广告搜索词报告（app/datasources/ads_report.py 产出）。
+    未传入时降级为代理指标——参赛环境没有广告账户，这条路径平时不生效，
+    但架构上必须已通，否则"数据源可插拔"就是空话。
+    """
     observed = _count_cn_terms(titles) or _english_ngrams(titles, keyword)
     has_cjk = bool(observed) and bool(re.search(r"[\u4e00-\u9fff]", observed[0]["term"]))
 
@@ -213,7 +220,7 @@ def build(keyword: str, titles: list[str], marketplace: str = "US",
                  "本作品未接入搜索量数据源，故不提供搜索量与竞争度评分",
     }
 
-    return {
+    result = {
         "keyword": keyword,
         "marketplace": marketplace,
         "language_of_source": "zh" if has_cjk else "en",
@@ -229,6 +236,8 @@ def build(keyword: str, titles: list[str], marketplace: str = "US",
             "观测词描述的是「买家在搜什么 / 竞品在写什么」，不等于「本品有什么参数」",
         ],
     }
+    # 广告搜索词报告：配置了就挂曝光/点击，没配置就标注 not_configured（不猜数）
+    return ads_source.attach(result, ads_report)
 
 
 async def run(tool_input: dict[str, Any]) -> ToolOutcome:
@@ -240,15 +249,35 @@ async def run(tool_input: dict[str, Any]) -> ToolOutcome:
         return ToolOutcome(False, "error", None,
                            f"存证中可用竞品标题仅 {len(titles)} 条，不足以统计词频（需 ≥3）")
     keyword = str(tool_input.get("keyword") or "").strip() or titles[0][:20]
-    result = build(keyword, titles, str(tool_input.get("marketplace") or "US"))
+    report = _ads_report(tool_input)
+    result = build(keyword, titles, str(tool_input.get("marketplace") or "US"),
+                   ads_report=report)
     buckets = result["buckets"]
+    evidence = result.get("search_term_evidence") or {}
+    if evidence.get("data_source") == "ads_search_term_report":
+        ads_note = (f"；已挂广告搜索词报告（{evidence.get('period') or '周期未标注'}，"
+                    f"命中 {evidence.get('matched_terms')} 词）")
+    else:
+        ads_note = "；不提供搜索量（无数据源，不编造）"
     return ToolOutcome(
         True, "done", None,
         f"关键词层：从 {len(titles)} 条真实竞品标题观测到 {sum(len(v) for v in buckets.values())} 个可用词"
         f"（核心 {len(buckets['core'])} / 属性 {len(buckets['attribute'])}"
         f" / 场景 {len(buckets['scenario'])} / 人群 {len(buckets['audience'])}"
         f" / 相关品类 {len(buckets['related'])}），"
-        f"Search Terms {result['search_terms_bytes']}/250 字节；"
-        f"不提供搜索量（无数据源，不编造）",
+        f"Search Terms {result['search_terms_bytes']}/250 字节" + ads_note,
         result,
     )
+
+
+def _ads_report(tool_input: dict[str, Any]) -> dict | None:
+    """广告搜索词报告：工具入参优先，其次环境变量配置；都没有则返回 None（降级）。
+
+    参赛环境没有广告账户，所以默认走 None 分支——但代码路径必须是通的，
+    否则"数据源可插拔"只是文档里的一句话。
+    """
+    path = str(tool_input.get("ads_report_path") or CONFIG.ads_report_path or "").strip()
+    if not path:
+        return None
+    period = str(tool_input.get("ads_report_period") or CONFIG.ads_report_period or "").strip()
+    return ads_source.load_csv(path, period=period or None)

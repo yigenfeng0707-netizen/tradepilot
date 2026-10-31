@@ -1,42 +1,76 @@
 {
  "meta": {
-  "generated_at": "2026-10-28T05:14:55+00:00",
+  "generated_at": "2026-10-31T04:47:28+00:00",
   "mode": "llm",
-  "repeats": 2,
-  "agent_total_wall_s": 1139.8,
+  "repeats": 3,
+  "agent_total_wall_s": 3341.3,
   "honesty_notes": [
    "agent 侧指标全部自动实测，可复算",
    "人工基线待真人按 docs/eval/人工SOP.md 计时后填入 human_baseline（禁估算）",
-   "美国站竞品带（walmart 源）在部署态启用后，band_source 将从 domestic_reference 升级为 us_retail"
+   "llm_planned_rate = LLM 做出选择的步数占比；与规则序一致不构成自主证据，llm_override_total 才是（模型选择与规则评分不一致并被采纳的次数）",
+   "walmart 源经 robots.txt 校验对通用 UA 禁止 /search，故 band_source 仍为 domestic_reference；美国站真实竞品带需接该站官方 API 授权后启用",
+   "source_traceable 的分母 = 界面展示的事实（竞品条目逐条 + 现场汇率 + 已落存证的合规条款行）；派生值（价格带/下限/敏感性/关键词派生）与 AI 文案不进分母，未取得正文的条款行也不进分母但计入 compliance_unverified——口径见 app/eval_metrics.py",
+   "fact_spot_check_accuracy 与 labor_cost_equiv 在真人回填抽检表 / 掐表前恒为 null，不是脚本缺陷，是红线要求",
+   "labor_cost_equiv 的 agent 侧取单次任务均值（per_run_mean_s），与人工单次同口径；两项人工数据由 scripts/human_baseline.py 在终端当场录入，非 TTY 环境拒绝执行"
   ]
  },
  "summary": {
   "pet": {
-   "runs": 2,
-   "elapsed_mean_s": 219.9,
-   "elapsed_stdev_s": 50.56,
-   "items_mean": 8,
+   "runs": 3,
+   "elapsed_mean_s": 298.6,
+   "elapsed_stdev_s": 15.71,
+   "items_mean": 4,
    "steps_success_rate": 1.0,
-   "compliance_verified_mean": 0.75,
-   "llm_planned_rate": 0.9
+   "compliance_verified_mean": 0.25,
+   "llm_planned_rate": 0.958,
+   "llm_override_total": 3,
+   "retries_total": 0,
+   "audit_score_mean": 86,
+   "source_traceable": {
+    "facts_total": 27,
+    "facts_traceable": 27,
+    "rate": 1.0,
+    "compliance_unverified": 0,
+    "derived_figures": 12
+   }
   },
   "home": {
-   "runs": 2,
-   "elapsed_mean_s": 148.6,
-   "elapsed_stdev_s": 14.28,
-   "items_mean": 8,
-   "steps_success_rate": 1.0,
-   "compliance_verified_mean": 0.75,
-   "llm_planned_rate": 1.0
-  },
-  "electronics": {
-   "runs": 2,
-   "elapsed_mean_s": 201.4,
-   "elapsed_stdev_s": 23.76,
-   "items_mean": 8,
+   "runs": 3,
+   "elapsed_mean_s": 360.4,
+   "elapsed_stdev_s": 52.59,
+   "items_mean": 5,
    "steps_success_rate": 1.0,
    "compliance_verified_mean": 0.5,
-   "llm_planned_rate": 1.0
+   "llm_planned_rate": 1.0,
+   "llm_override_total": 4,
+   "retries_total": 0,
+   "audit_score_mean": 88,
+   "source_traceable": {
+    "facts_total": 30,
+    "facts_traceable": 30,
+    "rate": 1.0,
+    "compliance_unverified": 0,
+    "derived_figures": 12
+   }
+  },
+  "electronics": {
+   "runs": 3,
+   "elapsed_mean_s": 454.1,
+   "elapsed_stdev_s": 67.56,
+   "items_mean": 5.3,
+   "steps_success_rate": 0.75,
+   "compliance_verified_mean": 0.25,
+   "llm_planned_rate": 1.0,
+   "llm_override_total": 4,
+   "retries_total": 4,
+   "audit_score_mean": 89,
+   "source_traceable": {
+    "facts_total": 31,
+    "facts_traceable": 31,
+    "rate": 1.0,
+    "compliance_unverified": 0,
+    "derived_figures": 8
+   }
   }
  },
  "runs": [
@@ -44,150 +78,411 @@
    "category": "pet",
    "keyword": "dog bed",
    "repeat": 1,
-   "mission_id": "mission-20261028-045555",
-   "elapsed_s": 184.2,
-   "steps_done": 5,
-   "steps_total": 5,
-   "decisions": 5,
-   "llm_planned": 4,
-   "items_n": 8,
+   "mission_id": "mission-20261031-035146",
+   "elapsed_s": 280.5,
+   "steps_done": 8,
+   "steps_total": 8,
+   "decisions": 8,
+   "llm_planned": 8,
+   "llm_overrides": 1,
+   "retries": 0,
+   "degraded": [],
+   "items_n": 4,
    "price_band": {
-    "min": 36.7,
-    "median": 98.71,
-    "max": 259.0
+    "min": 102.1,
+    "median": 516.0,
+    "max": 556.0
    },
    "currency": "CNY",
-   "floor_price_usd": 36.68,
+   "floor_price_usd": 56.99,
    "band_source": "domestic_reference（现场汇率折算的国内零售参考价）",
-   "compliance_verified": 3,
+   "compliance_verified": 1,
    "compliance_total": 4,
    "listing_source": "llm(基于存证事实；价格等数字以服务端回填为准",
+   "audit_score": 86,
+   "audit_grade": "A",
+   "audit_critical": 0,
+   "traceability": {
+    "facts_total": 9,
+    "facts_traceable": 9,
+    "source_traceable_rate": 1.0,
+    "untraceable": [],
+    "excluded": {
+     "derived_figures": 4,
+     "ai_generated_fields": 1,
+     "compliance_unverified": 0
+    },
+    "listing_labelled": true
+   },
    "errors": []
   },
   {
    "category": "pet",
    "keyword": "dog bed",
    "repeat": 2,
-   "mission_id": "mission-20261028-045859",
-   "elapsed_s": 255.7,
-   "steps_done": 5,
-   "steps_total": 5,
-   "decisions": 5,
-   "llm_planned": 5,
-   "items_n": 8,
+   "mission_id": "mission-20261031-035627",
+   "elapsed_s": 307.2,
+   "steps_done": 8,
+   "steps_total": 8,
+   "decisions": 8,
+   "llm_planned": 7,
+   "llm_overrides": 1,
+   "retries": 0,
+   "degraded": [],
+   "items_n": 4,
    "price_band": {
-    "min": 36.7,
-    "median": 98.71,
-    "max": 259.0
+    "min": 102.1,
+    "median": 516.0,
+    "max": 556.0
    },
    "currency": "CNY",
-   "floor_price_usd": 36.68,
+   "floor_price_usd": 56.99,
    "band_source": "domestic_reference（现场汇率折算的国内零售参考价）",
-   "compliance_verified": 3,
+   "compliance_verified": 1,
    "compliance_total": 4,
    "listing_source": "llm(基于存证事实；价格等数字以服务端回填为准",
+   "audit_score": 86,
+   "audit_grade": "A",
+   "audit_critical": 0,
+   "traceability": {
+    "facts_total": 9,
+    "facts_traceable": 9,
+    "source_traceable_rate": 1.0,
+    "untraceable": [],
+    "excluded": {
+     "derived_figures": 4,
+     "ai_generated_fields": 1,
+     "compliance_unverified": 0
+    },
+    "listing_labelled": true
+   },
+   "errors": []
+  },
+  {
+   "category": "pet",
+   "keyword": "dog bed",
+   "repeat": 3,
+   "mission_id": "mission-20261031-040134",
+   "elapsed_s": 308.2,
+   "steps_done": 8,
+   "steps_total": 8,
+   "decisions": 8,
+   "llm_planned": 8,
+   "llm_overrides": 1,
+   "retries": 0,
+   "degraded": [],
+   "items_n": 4,
+   "price_band": {
+    "min": 102.1,
+    "median": 516.0,
+    "max": 556.0
+   },
+   "currency": "CNY",
+   "floor_price_usd": 56.99,
+   "band_source": "domestic_reference（现场汇率折算的国内零售参考价）",
+   "compliance_verified": 1,
+   "compliance_total": 4,
+   "listing_source": "llm(基于存证事实；价格等数字以服务端回填为准",
+   "audit_score": 86,
+   "audit_grade": "A",
+   "audit_critical": 0,
+   "traceability": {
+    "facts_total": 9,
+    "facts_traceable": 9,
+    "source_traceable_rate": 1.0,
+    "untraceable": [],
+    "excluded": {
+     "derived_figures": 4,
+     "ai_generated_fields": 1,
+     "compliance_unverified": 0
+    },
+    "listing_labelled": true
+   },
    "errors": []
   },
   {
    "category": "home",
    "keyword": "wall clock",
    "repeat": 1,
-   "mission_id": "mission-20261028-050315",
-   "elapsed_s": 158.7,
-   "steps_done": 5,
-   "steps_total": 5,
-   "decisions": 5,
-   "llm_planned": 5,
-   "items_n": 8,
+   "mission_id": "mission-20261031-040642",
+   "elapsed_s": 419.3,
+   "steps_done": 8,
+   "steps_total": 8,
+   "decisions": 8,
+   "llm_planned": 8,
+   "llm_overrides": 1,
+   "retries": 0,
+   "degraded": [],
+   "items_n": 5,
    "price_band": {
-    "min": 7.0,
-    "median": 20.6,
-    "max": 101.0
+    "min": 77.0,
+    "median": 117.0,
+    "max": 243.0
    },
    "currency": "CNY",
-   "floor_price_usd": 17.39,
+   "floor_price_usd": 22.44,
    "band_source": "domestic_reference（现场汇率折算的国内零售参考价）",
-   "compliance_verified": 3,
+   "compliance_verified": 2,
    "compliance_total": 4,
    "listing_source": "llm(基于存证事实；价格等数字以服务端回填为准",
+   "audit_score": 92,
+   "audit_grade": "A",
+   "audit_critical": 0,
+   "traceability": {
+    "facts_total": 10,
+    "facts_traceable": 10,
+    "source_traceable_rate": 1.0,
+    "untraceable": [],
+    "excluded": {
+     "derived_figures": 4,
+     "ai_generated_fields": 1,
+     "compliance_unverified": 0
+    },
+    "listing_labelled": true
+   },
    "errors": []
   },
   {
    "category": "home",
    "keyword": "wall clock",
    "repeat": 2,
-   "mission_id": "mission-20261028-050554",
-   "elapsed_s": 138.5,
-   "steps_done": 5,
-   "steps_total": 5,
-   "decisions": 5,
-   "llm_planned": 5,
-   "items_n": 8,
+   "mission_id": "mission-20261031-041342",
+   "elapsed_s": 343.9,
+   "steps_done": 8,
+   "steps_total": 8,
+   "decisions": 8,
+   "llm_planned": 8,
+   "llm_overrides": 2,
+   "retries": 0,
+   "degraded": [],
+   "items_n": 5,
    "price_band": {
-    "min": 7.0,
-    "median": 20.6,
-    "max": 101.0
+    "min": 77.0,
+    "median": 117.0,
+    "max": 243.0
    },
    "currency": "CNY",
-   "floor_price_usd": 17.39,
+   "floor_price_usd": 22.44,
    "band_source": "domestic_reference（现场汇率折算的国内零售参考价）",
-   "compliance_verified": 3,
+   "compliance_verified": 2,
    "compliance_total": 4,
    "listing_source": "llm(基于存证事实；价格等数字以服务端回填为准",
+   "audit_score": 86,
+   "audit_grade": "A",
+   "audit_critical": 0,
+   "traceability": {
+    "facts_total": 10,
+    "facts_traceable": 10,
+    "source_traceable_rate": 1.0,
+    "untraceable": [],
+    "excluded": {
+     "derived_figures": 4,
+     "ai_generated_fields": 1,
+     "compliance_unverified": 0
+    },
+    "listing_labelled": true
+   },
+   "errors": []
+  },
+  {
+   "category": "home",
+   "keyword": "wall clock",
+   "repeat": 3,
+   "mission_id": "mission-20261031-041926",
+   "elapsed_s": 318.1,
+   "steps_done": 8,
+   "steps_total": 8,
+   "decisions": 8,
+   "llm_planned": 8,
+   "llm_overrides": 1,
+   "retries": 0,
+   "degraded": [],
+   "items_n": 5,
+   "price_band": {
+    "min": 77.0,
+    "median": 117.0,
+    "max": 243.0
+   },
+   "currency": "CNY",
+   "floor_price_usd": 22.44,
+   "band_source": "domestic_reference（现场汇率折算的国内零售参考价）",
+   "compliance_verified": 2,
+   "compliance_total": 4,
+   "listing_source": "llm(基于存证事实；价格等数字以服务端回填为准",
+   "audit_score": 86,
+   "audit_grade": "A",
+   "audit_critical": 0,
+   "traceability": {
+    "facts_total": 10,
+    "facts_traceable": 10,
+    "source_traceable_rate": 1.0,
+    "untraceable": [],
+    "excluded": {
+     "derived_figures": 4,
+     "ai_generated_fields": 1,
+     "compliance_unverified": 0
+    },
+    "listing_labelled": true
+   },
    "errors": []
   },
   {
    "category": "electronics",
    "keyword": "usb c cable",
    "repeat": 1,
-   "mission_id": "mission-20261028-050812",
-   "elapsed_s": 218.2,
-   "steps_done": 5,
-   "steps_total": 5,
-   "decisions": 5,
-   "llm_planned": 5,
+   "mission_id": "mission-20261031-042444",
+   "elapsed_s": 450.9,
+   "steps_done": 7,
+   "steps_total": 8,
+   "decisions": 9,
+   "llm_planned": 9,
+   "llm_overrides": 1,
+   "retries": 1,
+   "degraded": [
+    "opportunity_scan"
+   ],
    "items_n": 8,
    "price_band": {
-    "min": 14.0,
-    "median": 108.0,
-    "max": 344.4
+    "min": 9.99,
+    "median": 15.29,
+    "max": 41.48
    },
-   "currency": "CNY",
-   "floor_price_usd": 38.97,
-   "band_source": "domestic_reference（现场汇率折算的国内零售参考价）",
-   "compliance_verified": 2,
+   "currency": "USD",
+   "floor_price_usd": 12.31,
+   "band_source": "us_retail（真实美国站竞品价）",
+   "compliance_verified": 1,
    "compliance_total": 4,
    "listing_source": "llm(基于存证事实；价格等数字以服务端回填为准",
-   "errors": []
+   "audit_score": 86,
+   "audit_grade": "A",
+   "audit_critical": 0,
+   "traceability": {
+    "facts_total": 13,
+    "facts_traceable": 13,
+    "source_traceable_rate": 1.0,
+    "untraceable": [],
+    "excluded": {
+     "derived_figures": 4,
+     "ai_generated_fields": 1,
+     "compliance_unverified": 0
+    },
+    "listing_labelled": true
+   },
+   "errors": [
+    "opportunity_scan"
+   ]
   },
   {
    "category": "electronics",
    "keyword": "usb c cable",
    "repeat": 2,
-   "mission_id": "mission-20261028-051150",
-   "elapsed_s": 184.6,
-   "steps_done": 5,
-   "steps_total": 5,
-   "decisions": 5,
-   "llm_planned": 5,
+   "mission_id": "mission-20261031-043216",
+   "elapsed_s": 523.2,
+   "steps_done": 7,
+   "steps_total": 8,
+   "decisions": 9,
+   "llm_planned": 9,
+   "llm_overrides": 2,
+   "retries": 1,
+   "degraded": [
+    "opportunity_scan"
+   ],
    "items_n": 8,
    "price_band": {
-    "min": 14.0,
-    "median": 108.0,
-    "max": 344.4
+    "min": 9.99,
+    "median": 15.29,
+    "max": 41.48
    },
-   "currency": "CNY",
-   "floor_price_usd": 38.97,
-   "band_source": "domestic_reference（现场汇率折算的国内零售参考价）",
-   "compliance_verified": 2,
+   "currency": "USD",
+   "floor_price_usd": 12.31,
+   "band_source": "us_retail（真实美国站竞品价）",
+   "compliance_verified": 1,
    "compliance_total": 4,
    "listing_source": "llm(基于存证事实；价格等数字以服务端回填为准",
-   "errors": []
+   "audit_score": 92,
+   "audit_grade": "A",
+   "audit_critical": 0,
+   "traceability": {
+    "facts_total": 13,
+    "facts_traceable": 13,
+    "source_traceable_rate": 1.0,
+    "untraceable": [],
+    "excluded": {
+     "derived_figures": 4,
+     "ai_generated_fields": 1,
+     "compliance_unverified": 0
+    },
+    "listing_labelled": true
+   },
+   "errors": [
+    "opportunity_scan"
+   ]
+  },
+  {
+   "category": "electronics",
+   "keyword": "usb c cable",
+   "repeat": 3,
+   "mission_id": "mission-20261031-044059",
+   "elapsed_s": 388.2,
+   "steps_done": 2,
+   "steps_total": 4,
+   "decisions": 6,
+   "llm_planned": 6,
+   "llm_overrides": 1,
+   "retries": 2,
+   "degraded": [
+    "opportunity_scan",
+    "market_scan"
+   ],
+   "items_n": 0,
+   "price_band": null,
+   "currency": null,
+   "floor_price_usd": null,
+   "band_source": null,
+   "compliance_verified": 1,
+   "compliance_total": 4,
+   "listing_source": null,
+   "audit_score": null,
+   "audit_grade": null,
+   "audit_critical": null,
+   "traceability": {
+    "facts_total": 5,
+    "facts_traceable": 5,
+    "source_traceable_rate": 1.0,
+    "untraceable": [],
+    "excluded": {
+     "derived_figures": 0,
+     "ai_generated_fields": 0,
+     "compliance_unverified": 0
+    },
+    "listing_labelled": null
+   },
+   "errors": [
+    "market_scan",
+    "opportunity_scan"
+   ]
   }
  ],
  "provenance_totals": {
-  "total": 183,
-  "distinct_sources": 7
+  "total": 117,
+  "distinct_sources": 24
+ },
+ "source_traceability_overall": {
+  "facts_total": 88,
+  "facts_traceable": 88,
+  "rate": 1.0,
+  "target": 1.0
+ },
+ "fact_spot_check_accuracy": {
+  "accuracy": null,
+  "checked": 0,
+  "total": 30,
+  "reason": "真人回访未完成（0/30）——按红线禁估算"
+ },
+ "labor_cost_equiv": {
+  "labor_cost_equiv_cny": null,
+  "automation_rate": null,
+  "reason": "human_baseline.task_time_min 未由真人掐表填写（禁估算）"
  },
  "human_baseline": {
   "_说明": "由真人按 docs/eval/人工SOP.md 执行并计时后填写，禁估算",

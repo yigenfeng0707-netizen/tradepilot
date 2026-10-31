@@ -53,8 +53,10 @@ STEPS: tuple[StepSpec, ...] = (
              "多关键词真实扇描，用本批真实样本给候选品类排出调研先后（口径=样本观测，不是需求量）",
              base=15, max_attempts=1,
              goal_hints=("选品", "机会品类", "品类机会", "赛道", "雷达", "多品类")),
+    # 重试源用 newegg（USD，实测可抓）：walmart 被其自家 robots.txt 禁止 /search，
+    # 把重试指向一个已知不可达的源，等于用一次重试换一条误导性错误信息。
     StepSpec("market_scan", "真实抓取目标品类的市场商品与价格（多源适配，全部带来源存证）",
-             base=10, max_attempts=3, alt_source="walmart",
+             base=10, max_attempts=3, alt_source="newegg",
              goal_hints=("市场", "竞品", "选品", "调研", "竞争")),
     StepSpec("fx_rate", "现场真实汇率（Frankfurter/欧洲央行，存证后供定价折算）",
              base=20, goal_hints=("汇率", "定价", "价格")),

@@ -111,7 +111,8 @@ def sample_for_audit(n: int = 30) -> list:
 
 async def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--repeats", type=int, default=2)
+    ap.add_argument("--repeats", type=int, default=3,
+                    help="每品类重复轮次；≥3 才够算 stdev（2 轮时 pet 组 stdev 50s 已大于品类间差异）")
     ap.add_argument("--llm", action="store_true", help="启用 LLM 规划（默认规则流水线）")
     ap.add_argument("--hourly-cny", type=float, default=0.0,
                     help="人工时薪（元），用于人工成本折算；不填则该维度输出 null（不估算）")
@@ -192,6 +193,8 @@ async def main() -> None:
                 "未取得正文的条款行也不进分母但计入 compliance_unverified——口径见 app/eval_metrics.py",
                 "fact_spot_check_accuracy 与 labor_cost_equiv 在真人回填抽检表 / 掐表前恒为 null，"
                 "不是脚本缺陷，是红线要求",
+                "labor_cost_equiv 的 agent 侧取单次任务均值（per_run_mean_s），与人工单次同口径；"
+                "两项人工数据由 scripts/human_baseline.py 在终端当场录入，非 TTY 环境拒绝执行",
             ],
         },
         "summary": summary,
@@ -204,8 +207,10 @@ async def main() -> None:
             "target": 1.0,
         },
         "fact_spot_check_accuracy": eval_metrics.spot_check_accuracy(sheet),
+        # 口径：与人工基线同为「单次任务」，不是整批 wall time（见 eval_metrics.per_run_mean_elapsed）
         "labor_cost_equiv": eval_metrics.labor_cost_equiv(
-            human_baseline, round(time.time() - t0, 1), args.hourly_cny),
+            human_baseline, eval_metrics.per_run_mean_elapsed(runs) or 0.0,
+            args.hourly_cny),
         "human_baseline": human_baseline,
     }
     OUT.write_text(json.dumps(result, ensure_ascii=False, indent=1), encoding="utf-8")
