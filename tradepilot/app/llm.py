@@ -15,7 +15,9 @@ from typing import Any
 
 import httpx
 
+from . import usage
 from .config import CONFIG
+from .request_context import current_tenant_id
 
 
 def available() -> bool:
@@ -48,7 +50,12 @@ def _extract_json(text: str) -> dict[str, Any] | None:
 
 
 async def chat(system: str, user: str, max_tokens: int = 800) -> str | None:
-    """返回模型正文；不可用/失败一律返回 None（调用方自行降级）。"""
+    """返回模型正文；不可用/失败一律返回 None（调用方自行降级）。
+
+    每次实际发出的调用都记 token usage（M4 计费地基）：租户来自
+    request_context（middleware 设置，agents 链路不用改签名）；
+    usage 字段拿不到如实记 0，调用本身仍是计费事件。
+    """
     if not available():
         return None
     try:
@@ -65,7 +72,13 @@ async def chat(system: str, user: str, max_tokens: int = 800) -> str | None:
                 },
             )
             resp.raise_for_status()
-            msg = json.loads(resp.text)["choices"][0]["message"]
+            body = json.loads(resp.text)
+            msg = body["choices"][0]["message"]
+            try:
+                p_tok, c_tok = usage.extract_usage(body)
+                usage.record(current_tenant_id.get(), p_tok, c_tok)
+            except Exception:  # noqa: BLE001  记账失败不影响业务结果
+                pass
             content = str(msg.get("content") or "").strip()
             if content:
                 return content

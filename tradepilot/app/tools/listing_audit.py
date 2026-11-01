@@ -14,6 +14,16 @@
 5. 本地化：目标站语言残留（英文站出现中文）、度量单位未本地化。
 
 输出 0-100 分 + 逐条 issue（含修复建议）+ 可勾选清单，前端可直接渲染。
+
+## 与外部复核的边界（重要）
+
+`audit()` 是**纯函数**：不联网、不读环境变量、同样的输入必然同样的输出，
+所以评测可复算、单测可断言、答辩现场断网也能跑。这是作品自己可交付的能力。
+
+`run()` 在其后**可选**地调一次第三方复核（`app/datasources/listinggood.py`，
+默认 off）。它不参与评分，只作为第二意见并排展示——因为第三方引擎有可见误报
+且深度体检按次计费，把它设成闸门会让合格文案被拦下、让评测结果依赖外部服务。
+两者结论不一致时列分歧，不取平均。详见该模块的模块注释。
 """
 from __future__ import annotations
 
@@ -21,6 +31,7 @@ import re
 from typing import Any
 
 from .executor import ToolOutcome
+from ..datasources import listinggood
 
 # 各站点字段上限（字符；Search Terms 为字节）。数值取平台公开文档的保守值，
 # 类目另有更严限制时由 category_limits 覆盖（如部分类目标题 80 字符）。
@@ -290,10 +301,21 @@ async def run(tool_input: dict[str, Any]) -> ToolOutcome:
         search_terms=str(tool_input.get("search_terms") or copy.get("search_terms") or ""),
         generated_by=str(tool_input.get("generated_by") or ""),
     )
+
+    # 外部复核（第三方 ListingGood）：默认 off，不调用任何接口。
+    # 关键约束：它**不参与本地评分**——本地 audit() 是纯函数、可复算，
+    # 是作品自己可交付的那一层；外部只作第二意见并排展示（见 cross_check）。
+    ext = await listinggood.review(copy, str(result.get("marketplace") or "US"))
+    result["external_review"] = ext.to_json()
+    result["cross_check"] = listinggood.cross_check(result, ext)
+
     c = result["counts"]
-    return ToolOutcome(
-        True, "done", None,
-        f"文案审计 {result['score']} 分（{result['grade']} 级）："
-        f"{c['critical']} 项必改 / {c['warning']} 项建议 / {c['info']} 项提示 → {result['verdict']}",
-        result,
-    )
+    summary = (f"文案审计 {result['score']} 分（{result['grade']} 级）："
+               f"{c['critical']} 项必改 / {c['warning']} 项建议 / {c['info']} 项提示 "
+               f"→ {result['verdict']}")
+    if ext.ok:
+        cc = result["cross_check"]
+        summary += (f"；外部复核 {ext.score} 分（{ext.level}）→ {cc['verdict']}"
+                    + (f"，其中 {cc['external_only_n']} 项本地未覆盖需人工确认"
+                       if cc["external_only_n"] else ""))
+    return ToolOutcome(True, "done", None, summary, result)

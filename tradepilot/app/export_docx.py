@@ -438,7 +438,60 @@ def _section_audit(audit: dict[str, Any]) -> list[str]:
     else:
         out.append(_p("（无命中项）", style="Note"))
     out.append(_p(f"判定依据：{_text(audit.get('basis'))}", style="Note"))
+    out += _section_external_review(audit)
     return out
+
+
+def _external_off_line(note: str) -> str:
+    """外部复核未启用时的说明行（与 `store._external_off_line` 保持一致）。
+
+    本模块刻意只用标准库，不能为了一个字符串去依赖 app 包，所以重复这 8 行；
+    改这里记得同步 `store.py`，`tests/test_export_external_review.py` 会同时覆盖两条路径。
+    """
+    label = "外部复核未启用"
+    note = (note or "").strip()
+    if not note:
+        return f"{label}，本节结论仅来自本地规则审计。"
+    if note.startswith(label):
+        return note
+    return f"{label}（{note}）；本节结论仅来自本地规则审计。"
+
+
+def _section_external_review(audit: dict[str, Any]) -> list[str]:
+    """外部复核（第三方 ListingGood）——第二意见，**不计入上方评分**。
+
+    只在真拿到结果时渲染完整段落；未启用时留一行说明，让读者知道
+    "这一层我们考虑过、按设计没开"，而不是以为它不存在。
+    """
+    ext = _as_dict(audit.get("external_review"))
+    cc = _as_dict(audit.get("cross_check"))
+    status = _text(ext.get("status"))
+    if not status:
+        return []
+    if status == "ok":
+        out = [_p("外部复核（第三方，第二意见，不计入上方评分）", style="Heading2"),
+               _p(f"{_fmt(ext.get('score'))} 分 / {_text(ext.get('level'))} — "
+                  f"交叉校验 {_text(cc.get('verdict'))}"
+                  f"（本地{'通过' if cc.get('local_passed') else '未通过'} / "
+                  f"外部{'通过' if cc.get('external_passed') else '未通过'}）",
+                  bold=True)]
+        for raw in _as_list(ext.get("issues"))[:5]:
+            i = _as_dict(raw)
+            out.append(_bullet(
+                f"{_text(i.get('finding'))} ← {_text(i.get('evidence'))}"
+                f"（依据：{_text(i.get('source'))}）",
+                bold_prefix=f"[{_text(i.get('severity'))}] "))
+        if cc.get("external_only_n"):
+            out.append(_p(f"外部独有 {_num(cc.get('external_only_n'))} 项："
+                          "本地规则未命中，需人工判断是真实风险还是对方误报。",
+                          style="Note"))
+        if ext.get("note"):
+            out.append(_p(_text(ext.get("note")), style="Note"))
+        return out
+    if status == "off":
+        return [_p(_external_off_line(_text(ext.get("note"))), style="Note")]
+    return [_p(f"外部复核未取得结果（{status}：{_text(ext.get('summary'))}）；"
+               "本地审计结论不受影响。", style="Note")]
 
 
 def _section_decisions(report: dict[str, Any]) -> list[str]:

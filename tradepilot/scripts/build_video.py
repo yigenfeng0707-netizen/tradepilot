@@ -27,7 +27,9 @@ import httpx
 import websockets
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
-WS_URL = "wss://fygrobert-tradepilot.ms.show/ws/mission"
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import release_info  # noqa: E402  发布地址的单一来源
+WS_URL = release_info.WS_URL
 W = 1440
 H = 900
 FRAME_DIR = os.path.join(tempfile.gettempdir(), "tp_frames")
@@ -252,7 +254,7 @@ def render_open_card(draw, decisions):
             draw.text((60, y), ln, font=font(size), fill=color)
             y += int(size * 1.5)
     draw.rectangle([60, y + 30, 300, y + 34], fill=ACCENT)
-    draw.text((60, y + 50), "作品：https://fygrobert-tradepilot.ms.show", font=font(22),
+    draw.text((60, y + 50), f"作品：{release_info.SHARE_URL}", font=font(22),
               fill=WHITE)
 
 

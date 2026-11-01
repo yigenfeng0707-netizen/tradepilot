@@ -8,7 +8,9 @@ import httpx
 import websockets
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
-WS_URL = "wss://fygrobert-tradepilot.ms.show/ws/mission"
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import release_info  # noqa: E402  发布地址的单一来源
+WS_URL = release_info.WS_URL
 
 
 async def main() -> None:
@@ -102,7 +104,7 @@ async def main() -> None:
 
             # 健康检查（provenance 应该已填充）
             async with httpx.AsyncClient(timeout=15) as client:
-                r = await client.get("https://fygrobert-tradepilot.ms.show/api/health",
+                r = await client.get(release_info.url("/api/health"),
                                      headers={"User-Agent": UA})
                 prov = r.json().get("provenance", {})
                 print(f"\n  云端来源存证: {prov.get('total', 0)} 条 / {prov.get('distinct_sources', 0)} 个来源")

@@ -8,6 +8,11 @@
 选它而不是 SQLite 的理由：任务报告是**不可变的整体**，按 id 直读最快，
 且天然可打包带走（评委要"给我原始记录"时直接给目录）。
 云上注意：Cloud Run 的本地盘是临时的，跨实例不共享，见 docs/gcp-deploy.md 的持久化方案。
+
+多租户（M3）：报告带 tenant_id（save_mission 写入），读取/list 按租户过滤；
+tenant_id=None 表示单机/演示模式，全部可见。跨租户读取返回 None（同不存在，
+不泄露存在性）。存证库（provenance）刻意**不**按租户隔离：它是数据信任层的
+全局事实库（同一 URL 的真实抓取对所有租户都是事实），也是防编造闸门的查询面。
 """
 from __future__ import annotations
 
@@ -21,11 +26,17 @@ from .config import CONFIG
 _SAFE_ID = re.compile(r"^mission-[0-9]{8}-[0-9]{6}$")
 
 
-def save_mission(report: dict[str, Any]) -> str:
-    """落盘一份任务报告，返回文件路径。"""
+def save_mission(report: dict[str, Any], tenant_id: str | None = None) -> str:
+    """落盘一份任务报告，返回文件路径。
+
+    多租户（M3）：登录用户跑出的任务写入 tenant_id；未登录（单机/演示模式）
+    为 None。归属不明的 legacy 存档在带租户查询时不可见——
+    把旧演示数据冒充成某租户的任务，比看不到更糟。
+    """
     mission_id = str(report.get("mission_id") or "")
     if not _SAFE_ID.match(mission_id):
         raise ValueError(f"非法 mission_id：{mission_id!r}")
+    report["tenant_id"] = tenant_id
     path = os.path.join(CONFIG.missions_dir(), f"{mission_id}.json")
     tmp = f"{path}.tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
@@ -34,7 +45,15 @@ def save_mission(report: dict[str, Any]) -> str:
     return path
 
 
-def list_missions(limit: int = 20) -> list[dict[str, Any]]:
+def _visible(report: dict[str, Any], tenant_id: str | None) -> bool:
+    """租户可见性判定。tenant_id=None 是单机模式，全部可见；
+    带租户时只看自己的——无归属的 legacy 存档一概不冒充归属。"""
+    if tenant_id is None:
+        return True
+    return report.get("tenant_id") == tenant_id
+
+
+def list_missions(limit: int = 20, tenant_id: str | None = None) -> list[dict[str, Any]]:
     """按时间倒序列出任务摘要（不含完整 results，避免列表接口过大）。"""
     folder = CONFIG.missions_dir()
     files = [f for f in os.listdir(folder) if f.endswith(".json")]
@@ -45,6 +64,8 @@ def list_missions(limit: int = 20) -> list[dict[str, Any]]:
             with open(os.path.join(folder, name), encoding="utf-8") as fh:
                 report = json.load(fh)
         except (OSError, json.JSONDecodeError):
+            continue
+        if not _visible(report, tenant_id):
             continue
         results = report.get("results") or {}
         audit = (results.get("listing_audit") or {}).get("data") or {}
@@ -62,15 +83,64 @@ def list_missions(limit: int = 20) -> list[dict[str, Any]]:
     return out
 
 
-def get_mission(mission_id: str) -> dict[str, Any] | None:
+def missions_by_day(days: int = 14) -> list[dict[str, Any]]:
+    """近 N 天每日任务量（看板用）。按报告 started_at 的日期前缀聚合；
+    没有任务的天补 0——图表上的平线必须是真的没任务，不是缺数据。
+    注意：**只有本实例磁盘上的任务**（多实例部署时这不是全量口径，
+    云上持久化后天然齐全）。"""
+    from datetime import date, timedelta
+    folder = CONFIG.missions_dir()
+    today = date.today()
+    counts: dict[str, int] = {}
+    try:
+        files = [f for f in os.listdir(folder) if f.endswith(".json")]
+    except OSError:
+        files = []
+    for name in files[:2000]:
+        try:
+            with open(os.path.join(folder, name), encoding="utf-8") as fh:
+                started = str(json.load(fh).get("started_at") or "")
+        except (OSError, json.JSONDecodeError):
+            continue
+        day = started[:10]          # ISO 日期前缀；解析失败的不算数，不猜
+        if len(day) == 10 and day[4] == "-" and day[7] == "-":
+            counts[day] = counts.get(day, 0) + 1
+    return [{"day": (today - timedelta(days=days - 1 - i)).isoformat(),
+             "missions": counts.get((today - timedelta(days=days - 1 - i)).isoformat(), 0)}
+            for i in range(days)]
+
+
+def get_mission(mission_id: str, tenant_id: str | None = None) -> dict[str, Any] | None:
+    """读一份任务报告。跨租户访问与不存在返回同样的 None——
+    404 不泄露"这份报告存在但不属于你"。"""
     if not _SAFE_ID.match(mission_id):
         return None
     path = os.path.join(CONFIG.missions_dir(), f"{mission_id}.json")
     try:
         with open(path, encoding="utf-8") as fh:
-            return json.load(fh)
+            report = json.load(fh)
     except (OSError, json.JSONDecodeError):
         return None
+    return report if _visible(report, tenant_id) else None
+
+
+def _external_off_line(note: str) -> str:
+    """外部复核未启用时的说明行。
+
+    `note` 有两种形态：新任务里是完整句子（"外部复核未启用（…）；本次结论…"），
+    老存档或手工构造的只写一句原因（"模式为 off"）。两种都要读得通，
+    且不能出现"未启用（未启用（…））"这种重复包裹。
+
+    （`export_docx.py` 里有一份同样的实现——那个模块刻意只用标准库，
+    不能为了一个字符串去依赖 app 包，所以宁可重复这 8 行。）
+    """
+    label = "外部复核未启用"
+    note = (note or "").strip()
+    if not note:
+        return f"{label}，本节结论仅来自本地规则审计。"
+    if note.startswith(label):
+        return note
+    return f"{label}（{note}）；本节结论仅来自本地规则审计。"
 
 
 def export_markdown(report: dict[str, Any]) -> str:
@@ -210,6 +280,32 @@ def export_markdown(report: dict[str, Any]) -> str:
         lines += ["", f"> {audit.get('basis', '')}"]
     else:
         lines.append("（未执行审计）")
+
+    # 外部复核：默认未启用（off），启用后作为第二意见与本地结论并排展示。
+    # 刻意不合并成"综合分"——两个引擎方法不同，平均出来的数没有意义。
+    ext = audit.get("external_review") or {}
+    cc = audit.get("cross_check") or {}
+    if ext.get("status") == "ok":
+        lines += ["", "### 外部复核（第三方 ListingGood，第二意见，不计入上方评分）", "",
+                  f"- 结论：{ext.get('score')} 分 / {ext.get('level')}"
+                  f"（{ext.get('issue_n')} 项问题，其中高危 {ext.get('critical_n')} 项）"
+                  f"　接口：{ext.get('endpoint')}　耗时：{ext.get('latency_ms')}ms",
+                  f"- 交叉校验：**{cc.get('verdict')}**"
+                  f"（本地{'通过' if cc.get('local_passed') else '未通过'} / "
+                  f"外部{'通过' if cc.get('external_passed') else '未通过'}）"]
+        for i in (ext.get("issues") or [])[:5]:
+            lines.append(f"- [{i.get('severity')}] {i.get('finding')}"
+                         f" ← {i.get('evidence')}（依据：{i.get('source')}）")
+        if cc.get("external_only_n"):
+            lines += ["", f"> 外部独有 {cc.get('external_only_n')} 项：本地规则未命中，"
+                          "需人工判断是真实风险还是对方误报。"]
+        if ext.get("note"):
+            lines += ["", f"> {ext.get('note')}"]
+    elif ext.get("status") == "off":
+        lines += ["", f"> {_external_off_line(ext.get('note'))}"]
+    elif ext.get("status"):
+        lines += ["", f"> 外部复核未取得结果（{ext.get('status')}："
+                      f"{ext.get('summary', '')}）。本地审计结论不受影响。"]
 
     lines += ["", "## 七、决策实录", ""]
     for d in report.get("decisions") or []:

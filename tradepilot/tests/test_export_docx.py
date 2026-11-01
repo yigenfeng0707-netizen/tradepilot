@@ -375,9 +375,14 @@ class TestExportRoute(unittest.TestCase):
 
     def _call(self, fmt: str):
         import asyncio
+        from types import SimpleNamespace
 
+        # mission_export 现在需要 request 来解析租户（M3 多租户）；
+        # 无认证头的假请求 = 单机模式，与旧行为一致。
+        fake_req = SimpleNamespace(headers={})
         with mock.patch.object(self.M.store, "get_mission", return_value=self.report):
-            return asyncio.run(self.M.mission_export("mission-20260101-101010", format=fmt))
+            return asyncio.run(self.M.mission_export(
+                fake_req, "mission-20260101-101010", format=fmt))
 
     def test_docx_branch(self):
         resp = self._call("docx")

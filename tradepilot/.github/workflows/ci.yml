@@ -1,0 +1,50 @@
+# TradePilot CI（M3-⑤）。
+# 后端：471+ 单测（部分测试做真实网络抓取，GitHub runner 有外网；某天若因
+# 目标站反爬在 CI 上抖动，再评估是否加重试，不要先加——把抖动藏起来
+# 等于掩盖真实问题）。前端：tsc 类型检查 + 构建产物能出。
+# 本文件在无 GitHub 远端时由本地等价命令验证：pytest 与 npm 命令均为
+# 开发机日常运行的同一批，YAML 语法经解析校验。
+name: ci
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Run test suite
+        run: python -m pytest tests -q
+        env:
+          # CI 里不许写用户目录；数据进 runner 临时盘
+          TRADEPILOT_DATA_DIR: ${{ runner.temp }}/tradepilot-data
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web-react
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web-react/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Type check
+        run: npm run check
+      - name: Build
+        run: npm run build

@@ -1,23 +1,21 @@
-# 隐私与运行态（永不入库）
-.llm_key
-.env
-*.session
-.edge-profile/
-
-# 来源存证与任务存档（运行时产物，可由抓取重建；入库会让仓库膨胀且含第三方页面数据）
-assets/provenance.db
-assets/missions/
-*.db-journal
-*.db-wal
-
-# Python
 __pycache__/
 *.pyc
 .venv/
-.pytest_cache/
-.ruff_cache/
+.DS_Store
+.llm_key
+.listinggood_key
+assets/provenance.db
+assets/missions/
+.deploy_stash/
+.env.local
 
-# 构建与导出产物
-dist/
-build/
-*.log
+# 前端（web-react）：依赖与构建产物不进仓库，部署时构建
+web-react/node_modules/
+web-react/dist/
+
+# 端到端验证产物（截图 / 抓包样本），不进仓库
+shot_*.png
+auth_reg.json
+cg_*.json
+verify_*.json
+pipeline_sse.txt

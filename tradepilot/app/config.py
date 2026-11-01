@@ -3,9 +3,14 @@
 
 数据目录（存证库 + 任务记录）解析顺序：
 1. 环境变量 TRADEPILOT_DATA_DIR（云上必设，如 /tmp/tradepilot）；
-2. 仓库内 assets/（本地开发默认）；
-3. 仓库目录不可写时自动回退到系统临时目录——Cloud Run / 只读根文件系统下
-   容器不会因为写盘失败而崩溃（代价是实例重建后本地存证丢失，见 docs/gcp-deploy.md）。
+2. 系统临时目录下的 tradepilot/。
+
+**为什么默认不再用仓库内 assets/**：`assets/` 是会被**打包上传**的目录——
+发布部署会把整个项目目录传到沙箱，只排除 node_modules / .git / 构建产物。
+运行态数据放这里，等于每次部署都把本机存证库和历史任务带到线上：线上任务列表
+挂着本地测试任务、存证条数不从 0 开始、`assets/` 还混着两个已提交的评测输入文件。
+2026-10-31 真的踩过一次。本地开发想让数据留在仓库里方便翻看，显式设
+`TRADEPILOT_DATA_DIR=assets` 即可。
 """
 from __future__ import annotations
 
@@ -25,25 +30,20 @@ def _read_local_key() -> str:
         return ""
 
 
-def _writable(path: Path) -> bool:
+def _read_listinggood_key() -> str:
+    """外部复核服务的密钥（.listinggood_key），同 .llm_key 惯例：不入库。"""
     try:
-        path.mkdir(parents=True, exist_ok=True)
-        probe = path / ".write_probe"
-        probe.write_text("ok", encoding="utf-8")
-        probe.unlink()
-        return True
+        return (REPO_ROOT / ".listinggood_key").read_text(encoding="utf-8").strip()
     except OSError:
-        return False
+        return ""
 
 
 def _resolve_data_dir() -> str:
+    """运行态数据目录：环境变量优先，否则系统临时目录（**绝不放进上传目录**）。"""
     env = os.environ.get("TRADEPILOT_DATA_DIR", "").strip()
     if env:
         Path(env).mkdir(parents=True, exist_ok=True)
         return env
-    local = REPO_ROOT / "assets"
-    if _writable(local):
-        return str(local)
     fallback = Path(tempfile.gettempdir()) / "tradepilot"
     fallback.mkdir(parents=True, exist_ok=True)
     return str(fallback)
@@ -95,6 +95,14 @@ class Config:
         "TRADEPILOT_ADS_REPORT", ""))
     ads_report_period: str = field(default_factory=lambda: os.environ.get(
         "TRADEPILOT_ADS_PERIOD", ""))
+
+    # 外部合规复核（第三方 ListingGood）：默认 off，不调用任何外部接口。
+    # 为什么默认关：deep 是计费接口，评测批量跑会烧额度；且外部服务不可用时
+    # 作品必须照常出结果。off 下审计结论与未接入时逐字节一致。
+    listinggood_api_key: str = field(default_factory=lambda: os.environ.get(
+        "LISTINGGOOD_API_KEY", "") or _read_listinggood_key())
+    listinggood_mode: str = field(default_factory=lambda: os.environ.get(
+        "TRADEPILOT_LISTINGGOOD", "off"))
 
     def db_file(self) -> str:
         if not self.db_path:

@@ -1,0 +1,37 @@
+# TradePilot 本地全栈（M3-④）。
+#
+# 为什么只有 api 一个服务：应用目前的数据层是 SQLite/文件（provenance.db +
+# missions/*.json），**还没有 Postgres 连接代码**——现在往 compose 里塞一个
+# postgres 服务，看起来"起全栈"，实际没有任何组件连它，那是装饰不是架构。
+# Postgres 迁移（M3-①）落地后：加 postgres:16 服务 + TRADEPILOT_DB=postgres://...
+# + 挂卷持久化，一次改完。
+#
+# 本机开发注意：Windows 上 Docker 守护进程不可用，此文件**未在开发机 build
+# 验证**；Dockerfile 语法经人工核对，等价命令（uvicorn 起服 + /api/health）
+# 已在开发机验证。首次在有 Docker 的环境构建时留意构建日志。
+
+services:
+  api:
+    build: .
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      # 凭证类一律走 .env.local（已在 .gitignore），不写进 compose——
+      # compose 文件会进仓库，写进去等于把密钥提交到 git。
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_BASE_URL=${LLM_BASE_URL:-}
+      - LLM_MODEL=${LLM_MODEL:-}
+      - TRADEPILOT_JWT_SECRET=${TRADEPILOT_JWT_SECRET:-}
+      # 多实例/生产必须显式配 JWT secret；单机 compose 让 app 自动生成也可，
+      # 但容器重建会全体掉线，故这里留给 .env.local
+      - TRADEPILOT_DATA_DIR=/tmp/tradepilot
+    env_file:
+      - path: .env.local
+        required: false        # 没有凭证文件也能起（诚实降级：LLM 等如实报离线）
+    volumes:
+      # 数据挂出来：容器可丢，存证与任务档案不能丢
+      - tradepilot-data:/tmp/tradepilot
+    restart: unless-stopped
+
+volumes:
+  tradepilot-data:

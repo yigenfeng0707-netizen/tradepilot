@@ -118,3 +118,12 @@ def stats() -> dict[str, Any]:
         total = conn.execute("SELECT COUNT(*) FROM provenance").fetchone()[0]
         urls = conn.execute("SELECT COUNT(DISTINCT url) FROM provenance").fetchone()[0]
     return {"total": total, "distinct_sources": urls}
+
+
+def kind_stats() -> dict[str, int]:
+    """按 kind 的存证分布（看板用）。空库返回空字典，不返回编造的均匀分布。"""
+    with _LOCK, _db() as conn:
+        rows = conn.execute(
+            "SELECT kind, COUNT(*) c FROM provenance GROUP BY kind ORDER BY c DESC"
+        ).fetchall()
+    return {str(r[0]): int(r[1]) for r in rows}

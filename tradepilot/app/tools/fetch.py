@@ -169,10 +169,42 @@ def _fetch_browser_sync(url: str) -> dict[str, Any]:
     page = context.new_page()
     try:
         page.goto(url, timeout=CONFIG.fetch_timeout_s * 1000, wait_until="domcontentloaded")
-        page.wait_for_timeout(3500)  # 等客户端水合
+        _wait_hydrated(page)
         return {"url": page.url, "status": 200, "html": page.content()}
     finally:
         context.close()  # 只回收上下文，浏览器进程复用
+
+
+# 自适应水合等待：原实现固定 sleep 3.5s。实测合规单工具 6 次浏览器抓取
+# 59.5s 里约 1/4 在白等——政府站服务端直出页面 1.5s 内正文就不再增长。
+_HYDRATE_MAX_S = 3.5     # 上限与原固定等待一致：最坏情况不劣化
+_HYDRATE_MIN_S = 1.0     # 下限：给基础渲染留时间
+_HYDRATE_POLL_S = 0.3
+
+
+def _wait_hydrated(page: Any) -> None:
+    """轮询正文长度，连续两轮不再增长即提前收工。
+
+    用 body.innerText.length（浏览器内求值）而不是 page.content()——
+    后者每次都序列化整个 DOM，轮询本身就会拖慢页面。
+    SPA 慢水合时轮询到上限自动退化为原来的固定等待。
+    """
+    time.sleep(_HYDRATE_MIN_S)
+    deadline = time.monotonic() + (_HYDRATE_MAX_S - _HYDRATE_MIN_S)
+    last, stable = -1, 0
+    while time.monotonic() < deadline:
+        try:
+            n = page.evaluate("document.body ? document.body.innerText.length : 0")
+        except Exception:  # noqa: BLE001 — 页面跳转/销毁：立即交还，别拖
+            return
+        if n > 0 and n == last:
+            stable += 1
+            if stable >= 2:
+                return
+        else:
+            stable = 0
+        last = n
+        time.sleep(_HYDRATE_POLL_S)
 
 
 async def fetch_browser(url: str) -> dict[str, Any]:

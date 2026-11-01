@@ -229,6 +229,14 @@ def cmd_spotcheck(args) -> None:
         print(f"[{i}/{len(todo)}] #{row['provenance_id']} · {row['kind']} · {row['fetched_at']}")
         print(f"  URL: {row['url']}")
         print(f"  事实: {json.dumps(row.get('payload'), ensure_ascii=False)[:280]}")
+        ac = row.get("assistant_check") or {}
+        if ac:
+            mark = {True: "✓ 支持", False: "✗ 不支持", None: "? 需人工"}.get(
+                ac.get("suggestion"), "? 需人工")
+            print(f"  预检建议: {mark} —— {str(ac.get('reason', ''))[:100]}")
+            if ac.get("evidence"):
+                print(f"    证据摘录: {str(ac['evidence'])[:130]}")
+            print("    （预检只是参考，判定权在你；不确定就自己开 URL 核对）")
         while True:
             ans = _ask("  与页面一致？[y]是 [n]否 [s]跳过 [q]退出并保存 > ").strip().lower()
             if ans in ("y", "n", "s", "q"):

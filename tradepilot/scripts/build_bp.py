@@ -11,6 +11,10 @@ import os
 import sys
 from pathlib import Path
 
+# 发布地址的单一来源（scripts/release_info.py）：地址变了只改那一处
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import release_info  # noqa: E402
+
 try:  # reportlab 只在"出 PDF"时才需要；口径层（measured_facts）必须能在裸机上导入被测
     from reportlab.lib.colors import HexColor
     from reportlab.lib.pagesizes import A4
@@ -194,7 +198,7 @@ def build_bp(output):
          f"来源可溯率 {f['trace_detail']}；{f['tests']} 项离线单测全绿"),
     ]))
     E.append(Spacer(1, 5 * mm))
-    E.append(Paragraph("日期：2026-10-30　·　版本：v1.1（口径与代码对齐）", SUB_ST))
+    E.append(Paragraph("日期：2026-10-31　·　版本：v1.2（新增容器化部署验证；评测数据口径见第五章）", SUB_ST))
     E.append(PageBreak())
 
     # 一、项目概述
@@ -252,6 +256,8 @@ def build_bp(output):
                      f"{f['provenance_totals'].get('distinct_sources', 0)} 个来源；"
                      f"GET /api/provenance/{{id}} 可逐条回访"),
         ("岸基大屏", "原生 Canvas（真 <canvas> 绘制雷达/价格带/敏感性）+ DOM，无构建依赖"),
+        ("部署形态", "本地 / Docker / Cloud Run 三形态；Cloud Run 的硬约束（PORT 注入、只读根文件系统、"
+                     "容器内 Chromium 的 --no-sandbox 与 /dev/shm）均已适配，非事后补丁"),
     ]))
 
     # 五、数据验证
@@ -325,7 +331,10 @@ def build_bp(output):
     E.append(make_table(
         ["阶段", "内容", "时间"],
         [
-            ["已完成", "8 工具自主编排、真实抓取与存证、Canvas 大屏、DOCX 导出、171 项离线单测", "10 月 30 日"],
+            ["已完成", f"8 工具自主编排、真实抓取与存证、Canvas 大屏、DOCX 导出、"
+                       f"{f['tests']} 项离线单测", "10 月 30 日"],
+            ["已完成", "容器化部署验证：Cloud Run 实测冷启动 6.8s、密钥托管于 Secret Manager、"
+                       "缩容到 0 时按免费额度计费", "10 月 31 日"],
             ["提交前", "公网上线并重验发布面（check_release_drift 全绿）+ 人工基线 SOP 掐表 + 30 条事实抽检回访", "11-05 ~ 11-08"],
             ["提交", "官网报名与作品上传（截止 11-10 24:00）", "11-10 中午前"],
             ["赛后", "接入需官方 API 授权的真实美国站竞品带；选品雷达升级为需求侧评分", "11 月下旬起"],
@@ -334,7 +343,7 @@ def build_bp(output):
     ))
 
     E.append(Spacer(1, 8 * mm))
-    E.append(Paragraph("附：作品链接 https://fygrobert-tradepilot.ms.show", QUOTE))
+    E.append(Paragraph(f"附：作品链接 {release_info.SHARE_URL}", QUOTE))
 
     doc.build(E)
     print("BP 已生成:", output)
@@ -345,16 +354,25 @@ def release_gate(base: str) -> None:
 
     上一版 BP 写着"原生 Canvas 大屏 + 云端 5/5 步端到端"，而当时线上镜像只有
     5 个工具、前端 0 处 canvas——评委点开链接就是自我否定。这里让脚本替人拦住。
+
+    `base` 传 origin（不带查询串）；分享码从 release_info 取——发布应用不带分享码
+    一律 403，不带就等于把"缺凭证"误报成"不可达"。
     """
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from check_release_drift import compare, local_truth, remote_state  # noqa: E402
     import httpx  # noqa: E402
 
+    query = release_info.QUERY
     with httpx.Client(timeout=25, follow_redirects=True) as client:
-        health = client.get(f"{base}/api/health", headers={"User-Agent": "TradePilotBP/1.1"})
+        health = client.get(f"{base}/api/health" + (f"?{query}" if query else ""),
+                            headers={"User-Agent": "TradePilotBP/1.1"})
+        if health.status_code == 403:
+            raise SystemExit(
+                f"发布面门禁未过：{base} 返回 403（缺分享码）。\n"
+                "  设 TRADEPILOT_SHARECODE 或改 release_info.SHARE_URL 后重跑。")
         if health.status_code != 200:
             raise SystemExit(f"发布面门禁未过：{base} 不可达（HTTP {health.status_code}）")
-        rows = compare(local_truth(), remote_state(base, client))
+        rows = compare(local_truth(), remote_state(base, query, client))
     bad = [r for r in rows if not r[1]]
     if bad:
         for name, _, detail in bad:
@@ -367,5 +385,5 @@ if __name__ == "__main__":
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     out = args[0] if args else str(ROOT / "docs" / "TradePilot_BP.pdf")
     if "--check-live" in sys.argv:
-        release_gate("https://fygrobert-tradepilot.ms.show")
+        release_gate(release_info.ORIGIN)
     build_bp(out)

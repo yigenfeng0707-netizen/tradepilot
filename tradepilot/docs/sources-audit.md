@@ -264,6 +264,63 @@ python -m unittest discover -s tests -t .
 4. **类别覆盖**：Newegg 实测覆盖 `electronics`（线缆）与 `pet`（狗床，其 marketplace 有货）；`home` 品类未在 Newegg 实测过，USD 家居竞品价本轮**没有**验证来源。
 5. **限速/礼貌**：沿用 `CONFIG.per_host_min_interval_s = 3.0` 与 `TRADEPILOT_RESPECT_ROBOTS=1` 默认值；本轮实测共 2 次搜索页抓取 + 1 次 robots.txt，未做并发压测。
 
+---
+
+## 8. 外部合规复核服务实测（ListingGood，2026-10-31）
+
+第三方服务，接入定位是**第二意见**，不参与本地评分（理由见 README 与
+`app/datasources/listinggood.py` 模块注释）。以下是拿真实 Key 实测到的契约与缺陷，
+不是看文档抄的——**文档与实现不一致的地方已在下表标出**。
+
+### 8.1 文档 vs 实测（不一致处）
+
+| 项 | 官方文档写 | 实测 |
+|---|---|---|
+| `/api/compliance-check` 请求体 | `{title, bullets, marketplace}` | 扁平字段返回 **400「请提供 listing 或 text」**；实际要 `{listing: {title, bullets, description}, marketplace}` 或 `{text, marketplace}` |
+| `/api/scan/deep` 请求体 | `{title, bullets, desc, marketplace, images?}` | 同样要 `{text, marketplace, images}` |
+| `/api/scan/deep` 返回 | "返回 JSON 任务；轮询 `GET /api/task/<id>`" | 实测一致：返回 `{task_id}`，轮询到 `status=done` 后取 `result` |
+
+结论：**以实测为准**。第三方改字段是最常见的静默破坏，所以留了
+`scripts/check_listinggood.py` 做一次性联调，改完代码打一次真实接口即可发现契约漂移。
+
+### 8.2 响应形状
+
+| 端点 | 计费 | 耗时实测 | 关键字段 |
+|---|---|---|---|
+| `POST /api/free-check` | 免费、无需 Key | 0.84s | `score`/`grade`/`issues[]`/`passed[]`/`stats`（另一套形状，未接入） |
+| `POST /api/compliance-check` | 免费 | 0.78s | `report.{score,level,total,by_severity,violations[]}` |
+| `POST /api/scan/deep` | 计月度额度 | **21.7s**（异步） | `result.{score,level,summary,issues[]}`，每条 `issues` 自带 `source` 指向具体政策条款 |
+
+### 8.3 实测到的两处误报（决定了它不能当闸门）
+
+同一段**合格**英文文案（`Non slip silicone base stops sliding on tile...`）：
+
+1. 把 `stops`（"stops sliding"，止滑）判为「医疗健康宣称 · high」——
+   它是按词表匹配 `stop(s)`，没有短语上下文；
+2. `BPA free` 在同一次报告里出现 **两遍**，`total: 3` 实际只有 2 类问题。
+
+本地审计对同一段文案判 **80 分 / 可上架**，交叉校验结论 `divergent`、
+`external_only=1`。**这正是并排展示证据的意义**：把 `stops` 原文摆出来，
+人一眼能看出是误报；如果只给一个合成分，这个判断就丢失了。
+
+### 8.4 它确实抓到了本地抓不到的东西
+
+深度体检对同一段文案（本地 86 分 / A）指出：
+
+- `keeps water cooler for longer` 是**无量化支撑的比较级宣称**——本地词表只认
+  `best / cures / guarantee` 这类硬词，不认比较级；
+- 加州 Prop 65 申报、CPC 儿童产品认证的类目风险（引用具体政策名）。
+
+所以两个引擎**互有盲区**，谁都不能单独当裁判。这也是不做加权平均的另一个原因：
+平均会把"一个抓到一个没抓到"抹平成一个看似中性的分数。
+
+### 8.5 不可用时的行为
+
+`off` 模式（默认）下不发起任何网络请求，审计结论与接入前**逐字节一致**；
+网络失败 / 超时 / 非 200 一律降级为 `status=error|timeout`，任务照常完成，
+导出物只多一行"外部复核未取得结果，本地审计结论不受影响"。
+深度体检超时会保留 `task_id`，人可以自己去后台查，而不是"结果丢了"。
+
 
 
 

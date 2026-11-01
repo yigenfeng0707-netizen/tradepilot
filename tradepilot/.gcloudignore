@@ -1,0 +1,40 @@
+# Cloud Build 上传上下文裁剪。
+#
+# 注意：一旦存在本文件，gcloud **只用它**、不再读 .gitignore，
+# 所以下面必须把 .gitignore 里与"上传"相关的那几条也复述一遍。
+#
+# 镜像本身只需要 app/ 与 web/（见 Dockerfile 的 COPY），
+# 其余内容进不了镜像，但会拖慢上传、并可能把本机数据带上云。
+
+# —— 凭证与运行态（最重要，绝不能上传）——
+.llm_key
+.listinggood_key
+.env
+*.session
+.edge-profile/
+assets/provenance.db
+assets/provenance.db-wal
+assets/provenance.db-shm
+assets/missions/
+.deploy_stash/
+
+# —— 不进镜像的开发资产 ——
+# assets/ 整个排除：Dockerfile 只 COPY app/ 与 web/，传上去也用不到；
+# 其中 audit_sample.json / eval_results.json 是评测输入样例，没必要上云。
+assets/
+tests/
+docs/
+scripts/
+*.md
+!README.md
+.github/
+.git/
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+dist/
+build/
+*.log
+node_modules/
