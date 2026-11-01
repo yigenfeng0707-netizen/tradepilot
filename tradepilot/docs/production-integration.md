@@ -51,7 +51,7 @@
 **决策**：以 `D:\电商\tradepilot` 为唯一代码库演进，海丝代码按模块迁入。
 
 **理由**：
-- TradePilot 已有 294 项测试、部署脚本（deploy_clean / check_release_drift）、两个已上线环境——迁移成本最低
+- TradePilot 已有完整测试体系（迁移时 294 项，现 559+）、部署脚本（deploy_clean / check_release_drift）、两个已上线环境——迁移成本最低
 - 新建 monorepo 需要重建 CI/部署/测试体系，收益（目录整洁）不抵成本
 - 海丝可运行代码仅 ~3100 行（agents + services），迁入成本可控；其文档/材料不迁
 
@@ -127,7 +127,8 @@ MARKETS = {
 
 - 开发/单机：`docker compose up`（api + web + postgres）
 - 生产：Cloud Run（已验证容器化）+ Cloud SQL；静态前端走 CDN
-- CI：GitHub Actions 跑 294+ 测试 + 前端 `tsc --noEmit` + 构建
+- CI：根仓库 `.github/workflows/ci.yml`（路径过滤 `tradepilot/**`）跑 pytest 全量
+  + 前端 `tsc` + 构建；部署另有 `deploy-modelscope` 工作流自带 unittest 门禁
 
 ---
 
@@ -367,14 +368,19 @@ React 前端只存在于开发机。改为多阶段构建：阶段 1 Node `npm c
 没有 Postgres 连接代码——现在塞一个 postgres 服务进 compose，看起来"起全栈"，
 实际没有组件连它，那是装饰不是架构。M3-① 落地时一次加全。
 
-诚实声明：开发机 Docker 守护进程不可用，Dockerfile/compose **未在本机
-build 验证**；等价命令（uvicorn + /api/health、npm build）已验证，YAML 语法
-经解析校验。
+验证状态（2026-11-01 更新）：此前"开发机 Docker 守护进程不可用、未 build
+验证"的声明已过时——WSL/HNS 修复后 Docker 可用，多阶段镜像 build 成功，
+容器冒烟注册/health//app//canvas 全 200；过程中抓出并修复两个干净环境 bug
+（requirements 漏 PyJWT/argon2-cffi、lifespan 漏 auth.init_db），干净容器
+冒烟自此列为改动后的固定验证。
 
-CI（`.github/workflows/ci.yml`）：backend（pytest 全量，数据目录指到 runner
-临时盘）+ frontend（`npm ci` + `tsc` + `build`）。测试里有真实网络抓取，
-GitHub runner 有外网；若将来因目标站反爬在 CI 上抖动，先解决抖动再考虑
-重试策略——把抖动藏进重试等于掩盖真实问题。
+CI（根仓库 `.github/workflows/ci.yml`）：backend（pytest 全量，数据目录指到
+runner 临时盘）+ frontend（`npm ci` + `tsc` + `build`），路径过滤
+`tradepilot/**`。**为什么在根不在 tradepilot/ 子树**：GitHub 只认仓库根的
+`.github/workflows`，本仓库根是工作区（origin 即 GitHub），首版放在子树里
+永远不会被触发，2026-11-01 移到根。测试里有真实网络抓取，GitHub runner 有
+外网；若将来因目标站反爬在 CI 上抖动，先解决抖动再考虑重试策略——把抖动
+藏进重试等于掩盖真实问题。
 
 ---
 

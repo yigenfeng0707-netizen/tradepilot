@@ -1,26 +1,37 @@
-# TradePilot CI（M3-⑤）。
-# 后端：471+ 单测（部分测试做真实网络抓取，GitHub runner 有外网；某天若因
+# TradePilot CI —— 仓库根工作流（GitHub 只认根 .github/workflows，子树里的
+# 首版永远不会被触发，2026-11-01 移到根并适配路径）。
+# 后端：pytest 全量（部分测试做真实网络抓取，GitHub runner 有外网；某天若因
 # 目标站反爬在 CI 上抖动，再评估是否加重试，不要先加——把抖动藏起来
 # 等于掩盖真实问题）。前端：tsc 类型检查 + 构建产物能出。
-# 本文件在无 GitHub 远端时由本地等价命令验证：pytest 与 npm 命令均为
-# 开发机日常运行的同一批，YAML 语法经解析校验。
+# 另有 .github/workflows/deploy-modelscope.yml：部署门禁自带 unittest 单测，
+# 与本工作流触发面不同（部署只看 push main）。
 name: ci
 
 on:
   push:
     branches: [master, main]
+    paths:
+      - "tradepilot/**"
+      - ".github/workflows/ci.yml"
   pull_request:
+    paths:
+      - "tradepilot/**"
+      - ".github/workflows/ci.yml"
 
 jobs:
   backend:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: tradepilot
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: pip
+          cache-dependency-path: tradepilot/requirements.txt
       - name: Install dependencies
         run: pip install -r requirements.txt -r requirements-dev.txt
       - name: Run test suite
@@ -34,14 +45,14 @@ jobs:
     timeout-minutes: 10
     defaults:
       run:
-        working-directory: web-react
+        working-directory: tradepilot/web-react
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: npm
-          cache-dependency-path: web-react/package-lock.json
+          cache-dependency-path: tradepilot/web-react/package-lock.json
       - name: Install dependencies
         run: npm ci
       - name: Type check
