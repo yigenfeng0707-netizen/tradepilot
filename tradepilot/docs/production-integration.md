@@ -419,6 +419,15 @@ null，不猜。
    refresh_tokens 20 / provenance 103）装载后逐表行数一致；
    setval 正确——MAX(id)=103，迁移后插入新行得 id=104 不撞主键；
    中文（UTF-8）写入读回正常。
+4. **补充（2026-11-01 晚）**：quota_usage / llm_usage / shop_authorizations
+   三张表 DDL 已补进 `pg_schema.sql` 并在同一容器验证——建表成功，
+   用模块真实 upsert 语句实测：累计扣重（2.5+1.0=3.5）、token 累加、
+   授权幂等（重复写只 1 行且时间刷新）、中文往返全部正确。
+   **方言差异（实测踩到）**：SQLite 的 `DO UPDATE SET weight = weight +
+   excluded.weight` 在 PG 报 ambiguous——裸列名须改为表名限定
+   `quota_usage.weight`。即换 Postgres 时 quota/usage 两模块的
+   ON CONFLICT 语句除占位符（?→%s）外还要补表名限定，两种写法已
+   实测等价；注释与正确写法见 `pg_schema.sql` 配额节。
 
 踩过的坑：`CONFIG.db_file()` 会把首次解析的库路径**缓存进实例**，
 `dataclasses.replace(CONFIG, data_dir=tmp)` 只换 data_dir 的话，provenance

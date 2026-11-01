@@ -11,9 +11,11 @@
 --                         现有代码按字符串写入/读取，改类型等于改所有读写代码。
 --
 -- 本 DDL 已于 2026-11-01 在真实 Postgres 16（docker postgres:16 容器）执行验证：
--- 4 张表建表成功；装载 export_sqlite_to_pg.py 真实导出（18 tenants / 18 users /
--- 20 refresh_tokens / 103 provenance）逐表行数一致；provenance 序列 setval 正确
--- （MAX(id)=103，迁移后新插入得 id=104，不撞主键）；中文（UTF-8）写入读回正常。
+-- 7 张表建表成功（tenants/users/refresh_tokens/provenance/quota_usage/
+-- llm_usage/shop_authorizations）；装载 export_sqlite_to_pg.py 真实导出
+-- （18 tenants / 18 users / 20 refresh_tokens / 103 provenance）逐表行数一致；
+-- provenance 序列 setval 正确（MAX(id)=103，迁移后新插入得 id=104，不撞主键）；
+-- 中文（UTF-8）写入读回正常。三张新表的 upsert 方言差异见下方"配额"节注释。
 -- 验证脚本与流程见 docs/production-integration.md 4.11。
 
 -- ---------- 认证（app/auth.py） ----------
@@ -57,3 +59,46 @@ CREATE TABLE IF NOT EXISTS provenance (
     payload      TEXT NOT NULL           -- JSON：该数据点的真实字段
 );
 CREATE INDEX IF NOT EXISTS idx_provenance_kind ON provenance(kind);
+
+-- ---------- 配额（app/quota.py） ----------
+-- 复合主键、无自增列 → 无序列，不需要 setval。
+--
+-- ⚠️ 实测差异（2026-11-01 PG 16 容器）：SQLite 的 upsert 写法
+--   DO UPDATE SET weight = weight + excluded.weight
+-- 在 PG 报 column reference "weight" is ambiguous——裸列名同时存在于
+-- 目标表与 excluded 时必须用表名限定。PG 等价写法：
+--   DO UPDATE SET weight = quota_usage.weight + excluded.weight
+-- 即换 Postgres 时 app/quota.py / app/usage.py 的 ON CONFLICT 语句
+-- 除占位符（?→%s）外还需补表名限定；两种写法已在容器实测等价
+-- （累计/幂等/中文往返均正确，见 docs/production-integration.md 4.11）。
+
+CREATE TABLE IF NOT EXISTS quota_usage (
+    tenant_id  TEXT NOT NULL,
+    day        TEXT NOT NULL,           -- UTC 日期
+    weight     DOUBLE PRECISION NOT NULL DEFAULT 0, -- 累计权重（SQLite REAL 同源）
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (tenant_id, day)
+);
+
+-- ---------- LLM 用量（app/usage.py） ----------
+
+CREATE TABLE IF NOT EXISTS llm_usage (
+    tenant_id         TEXT NOT NULL,
+    day               TEXT NOT NULL,
+    calls             INTEGER NOT NULL DEFAULT 0,
+    prompt_tokens     INTEGER NOT NULL DEFAULT 0,
+    completion_tokens INTEGER NOT NULL DEFAULT 0,
+    updated_at        TEXT NOT NULL,
+    PRIMARY KEY (tenant_id, day)
+);
+
+-- ---------- 店铺授权（app/shops.py） ----------
+-- 凭证本体不落库：只记「租户×平台×店铺」授权关系（token/secret 走环境与运行时）。
+
+CREATE TABLE IF NOT EXISTS shop_authorizations (
+    tenant_id     TEXT NOT NULL,
+    platform      TEXT NOT NULL,
+    shop_id       TEXT NOT NULL DEFAULT '',
+    authorized_at TEXT NOT NULL,
+    PRIMARY KEY (tenant_id, platform, shop_id)
+);
