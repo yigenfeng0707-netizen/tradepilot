@@ -129,7 +129,7 @@ set LLM_MODEL=Atria-Dawn
 | `TRADEPILOT_ADMIN_TOKEN` | 运营后台令牌（`/api/admin/*`）；未配置 = 后台关闭 | 空（关闭） |
 | `SHOPEE_PARTNER_ID` / `SHOPEE_PARTNER_KEY` | Shopee 开放平台凭证（`.env.local`，未配置如实报未接入） | 空 |
 | `LAZADA_APP_KEY` / `LAZADA_APP_SECRET` | Lazada 开放平台凭证（同上） | 空 |
-| `PORT` | 监听端口（Cloud Run 注入） | 8080 |
+| `PORT` | 监听端口（Cloud Run 运行时注入；镜像默认 7860 = 魔搭健康检查端口） | 7860 |
 
 ## 任务流（规划图 8 个工具；标准任务执行 8 步 = 8 张决策卡 + 一份可溯源上架包）
 
@@ -295,7 +295,7 @@ Postgres 迁移导出自检 / 集成端点（401/404/409/502 语义分层）。
 ## 部署
 
 - Google Cloud Run：见 [`docs/gcp-deploy.md`](docs/gcp-deploy.md)（PORT 注入、只读文件系统、持久化三种方案与取舍）
-- 魔搭创空间：镜像已改为读取 `PORT`，部署时设 `PORT=7860` 即可沿用原配置
+- 魔搭创空间：镜像默认端口即 7860（与魔搭健康检查端口一致），无需显式设置任何环境变量
 
 ### 发布面门禁（部署后必跑）
 

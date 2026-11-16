@@ -241,5 +241,6 @@ gcloud run services update-traffic $SERVICE --region $REGION --to-revisions <REV
 
 ## 9. 顺带说明：魔搭创空间怎么办
 
-本仓库旧版固定监听 7860。镜像已改为读取 `PORT`（默认 8080），
-在魔搭部署时显式设置 `PORT=7860` 即可继续沿用原有配置，无需改代码。
+本仓库旧版固定监听 7860。镜像已改为读取 `PORT`（默认 7860），
+在魔搭部署时无需任何显式设置（默认端口即魔搭健康检查端口 7860）；
+Cloud Run 则由运行时注入 `PORT`，同样无需配置。
