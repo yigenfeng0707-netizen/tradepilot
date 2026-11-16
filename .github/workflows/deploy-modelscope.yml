@@ -33,7 +33,7 @@ concurrency:
 
 env:
   MODELSCOPE_DOMAIN: www.modelscope.cn
-  DEMO_URL: https://fygrobert-tradepilot.ms.show
+  DEMO_URL: https://gsym236998-tradepilot-opc.ms.show
 
 jobs:
   test:

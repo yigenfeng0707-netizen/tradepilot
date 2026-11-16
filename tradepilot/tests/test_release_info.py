@@ -29,25 +29,40 @@ _DOMAIN_MARKS = ("ms.show", "apps.workbuddy.host")
 
 
 class TestReleaseInfoParsing(unittest.TestCase):
+    # 分享码不是恒定的：旧托管网关强制分享码（空码=线上 403），当前魔搭创空间部署
+    # 无分享码闸门（SHARE_URL 不带 query）。守卫因此改为条件化——
+    # 「带码就必须全程带、不带码就不许半路冒出来」，具体带码行为由
+    # test_env_override_takes_effect 以固定输入锁定。
     def test_share_url_splits_into_origin_and_query(self):
         self.assertTrue(release_info.ORIGIN.startswith("https://"))
         self.assertNotIn("?", release_info.ORIGIN)
-        self.assertIn("sharecode=", release_info.QUERY)
+        if release_info.QUERY:
+            self.assertIn("sharecode=", release_info.QUERY)
 
-    def test_ws_url_points_at_mission_channel_with_sharecode(self):
+    def test_ws_url_points_at_mission_channel(self):
         self.assertTrue(release_info.WS_URL.startswith("wss://"))
         self.assertIn("/ws/mission", release_info.WS_URL)
-        # 不带分享码握手会被拒，所以必须带上
-        self.assertIn("sharecode=", release_info.WS_URL)
+        # 有分享码时必须带上（旧网关不带会 403）；无分享码时不得凭空造出 query
+        if release_info.SHARECODE:
+            self.assertIn("sharecode=", release_info.WS_URL)
+        else:
+            self.assertNotIn("sharecode=", release_info.WS_URL)
 
-    def test_url_helper_appends_sharecode(self):
+    def test_url_helper_consistent_with_query(self):
         u = release_info.url("/api/tools")
         self.assertTrue(u.startswith(release_info.ORIGIN + "/api/tools"))
-        self.assertIn("sharecode=", u)
+        if release_info.QUERY:
+            self.assertTrue(u.endswith("?" + release_info.QUERY))
+        else:
+            self.assertNotIn("sharecode=", u)
 
-    def test_sharecode_is_non_empty(self):
-        """空分享码会让线上 403，而 403 又会被误读成"漂移"——必须先在这里拦住。"""
-        self.assertTrue(release_info.SHARECODE)
+    def test_sharecode_matches_query(self):
+        """SHARECODE 必须与 SHARE_URL 的 query 一致，不能各自为政。"""
+        if "sharecode=" in release_info.QUERY:
+            expected = release_info.QUERY.split("sharecode=", 1)[1].split("&", 1)[0]
+            self.assertEqual(release_info.SHARECODE, expected)
+        else:
+            self.assertEqual(release_info.SHARECODE, "")
 
     def test_env_override_takes_effect(self):
         """换环境靠环境变量，不改代码。"""
