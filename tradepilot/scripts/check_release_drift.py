@@ -53,7 +53,9 @@ def local_truth() -> dict:
     from app.orchestrator import build_registry
 
     routes = {getattr(r, "path", "") for r in app.routes}
-    js = (ROOT / "web" / "app.js").read_bytes()
+    # Windows 工作区可能是 CRLF（autocrlf），仓库/容器内是 LF——哈希前归一化，
+    # 否则内容一致也会假报"静态文件漂移"（2026-11-16 魔搭部署实测）。
+    js = (ROOT / "web" / "app.js").read_bytes().replace(b"\r\n", b"\n")
     return {
         "tools": set(build_registry().names()),
         "has_provenance_route": "/api/provenance" in routes,
