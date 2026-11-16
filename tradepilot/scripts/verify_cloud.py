@@ -2,6 +2,7 @@
 """云端端到端验证：通过 WebSocket 触发一次完整任务到魔搭部署。"""
 import asyncio
 import json
+import os
 import sys
 
 import httpx
@@ -30,7 +31,12 @@ async def main() -> None:
     }
 
     try:
-        async with websockets.connect(WS_URL, extra_headers={"User-Agent": UA}) as ws:
+        # 兼容 websockets 新旧 API：>=14 用 additional_headers，旧版用 extra_headers
+        try:
+            _conn = websockets.connect(WS_URL, additional_headers={"User-Agent": UA})
+        except TypeError:
+            _conn = websockets.connect(WS_URL, extra_headers={"User-Agent": UA})
+        async with _conn as ws:
             print("WebSocket 已连接，发送任务…")
             await ws.send(json.dumps(task_payload))
 

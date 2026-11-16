@@ -785,7 +785,11 @@ async def mission_detail(request: Request, mission_id: str) -> JSONResponse:
 
 @app.get("/api/missions/{mission_id}/export")
 async def mission_export(request: Request, mission_id: str, format: str = "md") -> Any:
-    """导出上架包：format=json（机器可读原始报告）/ md（可交付上架包）/ docx（Word 版）。"""
+    """导出上架包：json（原始报告）/ md（上架包）/ docx（Word）/ opc（想法→生意简报）。
+
+    ``opc`` 是面向 OPC 一人公司叙事的“想法→生意”价值链简报：
+    内容全部来自同一次任务的真实报告，不额外造数（见 app/opc_brief.py 红线）。
+    """
     report = store.get_mission(mission_id, tenant_id=_tenant_of(request))
     if report is None:
         raise HTTPException(status_code=404, detail="任务不存在或 id 非法")
@@ -796,6 +800,14 @@ async def mission_export(request: Request, mission_id: str, format: str = "md") 
         text = store.export_markdown(report)
         return PlainTextResponse(text, headers={
             "Content-Disposition": f'attachment; filename="{mission_id}.md"'},
+            media_type="text/markdown; charset=utf-8")
+    if format == "opc":
+        from .opc_brief import build_opc_brief, export_opc_markdown
+
+        brief = build_opc_brief(report)
+        text = export_opc_markdown(brief)
+        return PlainTextResponse(text, headers={
+            "Content-Disposition": f'attachment; filename="{mission_id}-opc.md"'},
             media_type="text/markdown; charset=utf-8")
     if format == "docx":
         # 局部导入：导出函数之外的行不属本模块改动范围，避免动共享的 import 区
@@ -808,7 +820,25 @@ async def mission_export(request: Request, mission_id: str, format: str = "md") 
             "Content-Disposition": f'attachment; filename="{mission_id}.docx"'},
             media_type="application/vnd.openxmlformats-officedocument"
                        ".wordprocessingml.document")
-    raise HTTPException(status_code=400, detail="format 仅支持 json / md / docx")
+    raise HTTPException(status_code=400, detail="format 仅支持 json / md / docx / opc")
+
+
+@app.get("/api/opc/brief")
+async def opc_brief_latest(request: Request) -> dict[str, Any]:
+    """最新一次任务的 OPC「想法→生意」简报（JSON）。
+
+    参赛现场可直接打开这个接口，把“一句话目标”到“可上架生意”的价值链讲给评委，
+    无需依赖某个具体 mission_id。没有归档任务时返回 404，不编造示例。
+    """
+    from .opc_brief import build_opc_brief
+
+    missions = store.list_missions(limit=1, tenant_id=_tenant_of(request))
+    if not missions:
+        raise HTTPException(status_code=404, detail="尚无归档任务，先下达一次任务")
+    full = store.get_mission(missions[0]["mission_id"], tenant_id=_tenant_of(request))
+    if full is None:
+        raise HTTPException(status_code=404, detail="任务档案不可读")
+    return build_opc_brief(full)
 
 
 @app.get("/")

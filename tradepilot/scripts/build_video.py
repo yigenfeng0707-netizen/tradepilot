@@ -34,7 +34,28 @@ W = 1440
 H = 900
 FRAME_DIR = os.path.join(tempfile.gettempdir(), "tp_frames")
 TTS_DIR = os.path.join(tempfile.gettempdir(), "tp_tts")
-FFMPEG = r"C:\Program Files\EVCapture\ffmpeg.exe"
+def _find_ffmpeg() -> str:
+    """自动定位 ffmpeg：优先 PATH，再试常见安装点。
+
+    旧版写死 C:\\Program Files\\EVCapture\\ffmpeg.exe，换机器就没了——
+    开发机上实际装在别处，脚本直接 FileNotFoundError。
+    """
+    import shutil
+    found = shutil.which("ffmpeg")
+    if found:
+        return found
+    for candidate in (
+        r"C:\Program Files\EVCapture\ffmpeg.exe",
+        r"C:\ffmpeg\bin\ffmpeg.exe",
+        r"C:\ffmpeg\ffmpeg-6.1.1-essentials_build\bin\ffmpeg.exe",
+        "/usr/bin/ffmpeg", "/usr/local/bin/ffmpeg",
+    ):
+        if os.path.exists(candidate):
+            return candidate
+    raise SystemExit("未找到 ffmpeg：请安装并加入 PATH，或把路径加进 _find_ffmpeg() 候选表")
+
+
+FFMPEG = _find_ffmpeg()
 FONT = r"C:\Windows\Fonts\msyh.ttc"
 FONT_BOLD = r"C:\Windows\Fonts\msyhbd.ttc"
 
@@ -103,6 +124,18 @@ def save_frame(name: str, img) -> str:
     return path
 
 
+def _ws_connect(url: str, ua: str):
+    """兼容 websockets 新旧 API：>=14 用 additional_headers，旧版用 extra_headers。
+
+    回归：websockets 15 里 extra_headers 被移除（TypeError: unexpected keyword
+    argument 'extra_headers'），视频生产线与云端验证脚本同时失效。
+    """
+    try:
+        return websockets.connect(url, additional_headers={"User-Agent": ua})
+    except TypeError:
+        return websockets.connect(url, extra_headers={"User-Agent": ua})
+
+
 async def run_mission_events() -> dict:
     payload = {
         "goal": "把宠物用品切入美国站，先看真实市场再定价格与合规",
@@ -111,7 +144,7 @@ async def run_mission_events() -> dict:
         "unit_cost_cny": None, "target_margin_pct": 20.0,
     }
     events: dict = {"decisions": [], "results": {}}
-    async with websockets.connect(WS_URL, extra_headers={"User-Agent": UA}) as ws:
+    async with _ws_connect(WS_URL, UA) as ws:
         await ws.send(json.dumps(payload))
         for _ in range(8):
             msg = await asyncio.wait_for(ws.recv(), timeout=200)
