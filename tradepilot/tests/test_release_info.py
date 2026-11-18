@@ -98,7 +98,7 @@ class TestNoHardcodedDeployUrl(unittest.TestCase):
     def test_consumers_import_release_info(self):
         """BP / 视频 / 云端验证 / 漂移检查这四个消费方都要真的引用它。"""
         for name in ("build_bp.py", "build_video.py", "verify_cloud.py",
-                     "check_release_drift.py"):
+                     "check_release_drift.py", "fill_registration.py"):
             text = (SCRIPTS / name).read_text(encoding="utf-8", errors="ignore")
             self.assertIn("release_info", text, f"{name} 未引用 release_info")
 
