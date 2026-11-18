@@ -56,50 +56,51 @@
 
 ---
 
-## 2. 演示预案（⚠️ 已按 11-16 实测公网状态重写）
+## 2. 演示预案（11-18 公网已修复并重验，主演示恢复为线上）
 
-### 🔴 先读这条：公网链接已过期，不能作为主演示
+### ✅ 先读这条：公网 Demo 已公开可访问
 
-11-16 实测 `https://tradepilot.apps.workbuddy.host/?sharecode=4FAF5YBGRD`：
-- 首页 `/` 还能开（返回的是**旧版 M1 Canvas 页面**），`/api/health` 200、`/api/tools` 200（8 工具）；
-- 但 `/app`（React 主前端）、`/canvas`、`/api/capabilities`、`/api/opc/brief` **全部 404**；
-- 另一条 CI 配置里的 `fygrobert-tradepilot.ms.show` 网关直接 403（未授权/未同步）。
+`https://gsym236998-tradepilot-opc.ms.show`（魔搭创空间 Docker 型，`gsym236998/tradepilot-opc`）
 
-结论：**线上跑的是旧镜像，与 BP 描述的"React 主前端 + OPC 作战简报 + 能力声明"不一致**。评委点开若发现 404，比代码 bug 更致命。因此演示主路径改为**本地起服务**，公网链接只作"已部署证明"的补充展示，且只在确认可用时点开。
+- 11-18 实测：空间 `visibility=public` / `Running`；`/`、`/app`、`/canvas`、`/api/health`、
+  `/api/tools`、`/api/capabilities`、`/api/provenance` 全部 **200**；
+  `check_release_drift.py` 全绿（工具 8/8、Canvas 字节级一致）。
+- 历史故障已闭合：11-16 的 403 根因是空间 `visibility=protected`，不是镜像问题；
+  CI 增加「部署后强制 PATCH visibility=public」步骤，重部署自动保持公开。
+- 两个**答辩前要知道的正常现象**：① 魔搭边缘 WAF 对不带浏览器 UA 的裸 `curl` 会回 403，
+  评委用浏览器打开正常，命令行验证请带浏览器 UA + `Referer`；
+  ② `/api/opc/brief` 在空库时返回 404 是刻意设计（无归档不造样例），**先跑一次任务再打开**即可。
 
-### 档 A · 本地 live（首选，约 3 分钟，已实测可跑通）
-1. 现场从本仓库起服务（需自带笔记本，提前装好依赖 + Chromium）：
-   ```bash
-   cd tradepilot
-   pip install -r requirements.txt && python -m playwright install chromium
-   uvicorn app.main:app --host 127.0.0.1 --port 8080
-   # 打开 http://127.0.0.1:8080/app（主前端） 或 /canvas（运营大屏）
-   # 新端点 /api/capabilities、/api/opc/brief 本地全部 200（11-16 实测）
-   ```
+### 档 A · 公网 live（首选，约 3 分钟）
+1. 浏览器打开 `https://gsym236998-tradepilot-opc.ms.show/app`；
 2. 下达默认目标「把宠物用品切入美国站，先看真实市场再定价格与合规」；
 3. 边跑边指决策时间线：LLM 决策卡、候选集、可溯存证弹层；
 4. 跑到 Listing 后点几个「存证#N」现场回访原页；
-5. 打开 `/api/opc/brief`，展示「想法→生意」价值链简报（新功能，本地可用），直接扣题命题；
+5. **任务跑完后**打开 `/api/opc/brief`，展示「想法→生意」价值链简报，直接扣题命题；
 6. 导出 DOCX 上架包，说明「拿到这包就能上架接单」。
-- 11-16 已用进程内测试验证：`/api/capabilities` 200（4 品类）、`/api/opc/brief` 200（8 环节价值链）、`export?format=opc` 200。
-- 风险：现场抓取依赖外网 + 数据源可达；**演示前 30 分钟在本地先跑一遍**。
+- 赛前 30 分钟先自己完整跑一遍；若现场外网抓取失败，直接切档 B/C，不临场调试。
 
-### 档 B · 本地回放存档任务（实时抓取失败时）
+### 档 B · 本地 live（公网不稳时）
+```bash
+cd tradepilot
+pip install -r requirements.txt && python -m playwright install chromium
+uvicorn app.main:app --host 127.0.0.1 --port 8080
+# 打开 http://127.0.0.1:8080/app（主前端）或 /canvas（运营大屏）
+```
+话术不变，只把「线上链接」换成「本地同一份代码」。11-16 已实测新端点本地全 200。
+
+### 档 C · 本地回放存档任务（实时抓取失败时）
 1. 在「回放已存档任务」下拉里载入最新一条，逐帧回放决策卡；
 2. 用回放数据讲同一套叙事——省去实时抓取，只展示已存证的真实结果；
 3. `/api/opc/brief` 仍能出价值链简报（基于归档任务）。
 - 附件：《OPC作战简报_样例(真实评测数据).md》是 11-16 用 eval 真实数值生成的离线样例，现场可直接打开，不依赖任何服务。
 - 注意：回放讲的话术里把「现场抓取」改成「这是刚才那次真实任务的存档回放」，**不谎称实时**。
 
-### 档 C · 离线视频 + 材料（完全断网 / 笔记本不可用时）
-1. 播放 `scripts/build_video.py` 生成的端到端实录视频（离线 TTS + ffmpeg 生产线）；
+### 档 D · 离线视频 + 材料（完全断网 / 笔记本不可用时）
+1. 播放 `报名提交材料包/演示视频_端到端实录.mp4`（端到端实录，离线 TTS + ffmpeg 生产线）；
 2. 视频播完用 BP PDF + OPC 简报样例（本地文件）讲商业模式与落地，不依赖网络；
 3. 答辩照常——QA 全部基于口径卡，不需要联网。
-- 兜底底线：即使三档全受限，BP PDF + 口径卡 + QA 仍能完成一次完整答辩。
-
-### 关于公网链接的处理（二选一，需你决定）
-- **方案 1（推荐，赛前做）**：把本地改动 `git commit && git push` 触发 CI 重部署（workflow 有 test 门禁 + dry-run 默认关，需仓库变量 `MODELSCOPE_DEPLOY_ENABLED=1` 才会真部署）。重部署后重跑 `check_release_drift.py`，全绿再把链接写进材料。**注意这会改变公开地址，需你确认后再 push。**
-- **方案 2（稳妥）**：不改线上，材料里把公网链接标注为"历史部署快照"，主演示一律用本地；评委若问"有没有线上版"，如实说"本地版本更新，线上为早期快照，可现场演示本地版"。
+- 兜底底线：即使四档全受限，BP PDF + 口径卡 + QA 仍能完成一次完整答辩。
 
 ---
 
