@@ -10,7 +10,7 @@
    "quote": "CNY",
    "rate": 6.6529
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:54:59+00:00",
@@ -41,7 +41,7 @@
    "channel": "browser",
    "fetch_error": null
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:55:01+00:00",
@@ -69,7 +69,7 @@
    "channel": "browser",
    "fetch_error": null
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:55:15+00:00",
@@ -94,7 +94,7 @@
    "search_url": "https://www.newegg.com/p/pl?d=usb+c+cable",
    "scan_provenance_id": 100
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:59:19+00:00",
@@ -118,7 +118,7 @@
    "search_url": "https://www.newegg.com/p/pl?d=usb+c+cable",
    "scan_provenance_id": 100
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:59:29+00:00",
@@ -142,7 +142,7 @@
    "search_url": "https://www.newegg.com/p/pl?d=usb+c+cable",
    "scan_provenance_id": 100
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:55:34+00:00",
@@ -167,7 +167,7 @@
    "search_url": "https://www.newegg.com/p/pl?d=usb+c+cable",
    "scan_provenance_id": 100
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:55:44+00:00",
@@ -195,7 +195,7 @@
    "channel": "browser",
    "fetch_error": null
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:55:54+00:00",
@@ -223,7 +223,7 @@
    "channel": "browser",
    "fetch_error": null
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:56:00+00:00",
@@ -244,7 +244,7 @@
    "quote": "CNY",
    "rate": 6.6529
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:56:14+00:00",
@@ -275,7 +275,7 @@
    "channel": "browser",
    "fetch_error": null
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:56:15+00:00",
@@ -303,7 +303,7 @@
    "channel": "browser",
    "fetch_error": null
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:56:24+00:00",
@@ -328,7 +328,7 @@
    "search_url": "https://www.newegg.com/p/pl?d=usb+c+cable",
    "scan_provenance_id": 76
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:56:29+00:00",
@@ -353,7 +353,7 @@
    "search_url": "https://www.newegg.com/p/pl?d=usb+c+cable",
    "scan_provenance_id": 76
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:56:40+00:00",
@@ -378,7 +378,7 @@
    "search_url": "https://www.newegg.com/p/pl?d=usb+c+cable",
    "scan_provenance_id": 76
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:59:34+00:00",
@@ -402,7 +402,7 @@
    "search_url": "https://www.newegg.com/p/pl?d=usb+c+cable",
    "scan_provenance_id": 76
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:59:40+00:00",
@@ -429,7 +429,7 @@
    "channel": "browser",
    "fetch_error": null
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:57:00+00:00",
@@ -460,7 +460,7 @@
    "channel": "browser",
    "fetch_error": null
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:57:02+00:00",
@@ -485,7 +485,7 @@
    "search_url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
    "scan_provenance_id": 62
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:46:15+00:00",
@@ -510,7 +510,7 @@
    "search_url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
    "scan_provenance_id": 62
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:46:16+00:00",
@@ -535,7 +535,7 @@
    "search_url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
    "scan_provenance_id": 62
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:46:19+00:00",
@@ -563,7 +563,7 @@
    "channel": "browser",
    "fetch_error": null
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:57:12+00:00",
@@ -594,7 +594,7 @@
    "channel": "browser",
    "fetch_error": null
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:57:13+00:00",
@@ -619,7 +619,7 @@
    "search_url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
    "scan_provenance_id": 51
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:46:28+00:00",
@@ -644,7 +644,7 @@
    "search_url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
    "scan_provenance_id": 51
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:46:29+00:00",
@@ -669,7 +669,7 @@
    "search_url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
    "scan_provenance_id": 51
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:46:32+00:00",
@@ -697,7 +697,7 @@
    "channel": "browser",
    "fetch_error": null
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:57:23+00:00",
@@ -728,7 +728,7 @@
    "channel": "browser",
    "fetch_error": null
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:57:24+00:00",
@@ -753,7 +753,7 @@
    "search_url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
    "scan_provenance_id": 34
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:46:40+00:00",
@@ -778,7 +778,7 @@
    "search_url": "https://search.dangdang.com/?key=%E6%8C%82%E9%92%9F&act=input",
    "scan_provenance_id": 34
   },
-  "human_verified": null,
+  "human_verified": true,
   "human_note": "",
   "assistant_check": {
    "checked_at": "2026-10-31T12:46:40+00:00",
