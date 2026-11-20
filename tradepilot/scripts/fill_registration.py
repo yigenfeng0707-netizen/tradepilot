@@ -18,6 +18,10 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[2]
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+import release_info  # noqa: E402  发布地址的单一来源，禁止在别处写死域名
+
 MATERIALS = ROOT / "报名提交材料包"
 ZIP = ROOT / "报名提交材料包.zip"
 SHOT = MATERIALS / "报名表单_预填截图.png"
@@ -67,8 +71,7 @@ def main():
         inputs.nth(4).fill(email)
         page.get_by_role("combobox", name="赛道").click()
         page.get_by_role("option", name=TRACK).click()
-        page.locator('input[type="url"]').fill(
-            "https://gsym236998-tradepilot-opc.ms.show")
+        page.locator('input[type="url"]').fill(release_info.SHARE_URL)
         page.locator("textarea").fill(intro_text())
         page.locator('input[type="file"][multiple]').set_input_files(str(ZIP))
         cb = page.locator('input[type="checkbox"]')
