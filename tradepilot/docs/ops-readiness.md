@@ -11,8 +11,11 @@
 
 ## 1. Postgres 迁移装载
 
-**前置**：一台有 PostgreSQL ≥ 14 的机器（本机无服务端，DDL 未经执行验证——
-首次执行时留意语法报错，修完回填 `scripts/pg_schema.sql` 头注）。
+**验证状态（2026-11-01 更新）**：DDL 已在真实 Postgres 16（docker postgres:16
+容器）执行验证——7 张表建表成功、真实库导出装载逐表行数一致、provenance 序列
+setval 正确、中文往返正常（quota/llm/shop 三张新表的 upsert 亦实测；方言差异
+见 `scripts/pg_schema.sql` 配额节注释）。流程与结果详见
+docs/production-integration.md 4.11。
 
 **前置**：psycopg 驱动已装（`pip install psycopg[binary]`）。当前代码
 **还没有 Postgres 连接后端**——本节只做"数据装载"验证；应用切换存储后端
@@ -33,10 +36,10 @@ psql -h localhost -U postgres -d tradepilot -f /tmp/pg_migrate.sql
 ```
 
 **验证清单**（全部通过才算 ✅）：
-- [ ] 装载零报错（INSERT 行数 = 导出报告行数）
-- [ ] `SELECT COUNT(*) FROM provenance;` 与源库一致
-- [ ] `SELECT COUNT(*) FROM users;` / `tenants;` / `refresh_tokens;` 一致
-- [ ] 序列已拨到位：`INSERT INTO provenance (kind,url,fetched_at,content_hash,payload) VALUES ('t','https://x',now(),'h','{}') RETURNING id;` 应得到 max(id)+1 而非撞主键
+- [x] 装载零报错（INSERT 行数 = 导出报告行数）✅ 2026-11-01，docker postgres:16 容器
+- [x] `SELECT COUNT(*) FROM provenance;` 与源库一致 ✅ 同上（103 行）
+- [x] `SELECT COUNT(*) FROM users;` / `tenants;` / `refresh_tokens;` 一致 ✅ 同上（18/18/20）
+- [x] 序列已拨到位：迁移后新插入得 max(id)+1=104，未撞主键 ✅ 同上
 - [ ] 中文/单引号 payload 完整：随机抽 3 条 `payload` 与源库 diff
 
 **结果**：＿＿＿＿（日期/环境/执行人）
@@ -45,8 +48,11 @@ psql -h localhost -U postgres -d tradepilot -f /tmp/pg_migrate.sql
 
 ## 2. Docker 构建验证
 
-**前置**：有 Docker 守护进程的机器（开发机守护进程不可用——Dockerfile
-多阶段构建与 compose **均未 build 验证**，语法经人工核对）。
+**验证状态（2026-11-01 更新）**：WSL/HNS 修复后 Docker 可用——多阶段镜像
+build 成功，容器冒烟通过（注册 / `/api/health` / `/app` / `/canvas` 全 200；
+过程中修复两个干净环境 bug：requirements 漏 PyJWT/argon2-cffi、lifespan 漏
+auth.init_db）。详见 docs/production-integration.md 4.9。compose 全栈项与
+挂载卷存档项仍未逐项勾验。
 
 ```bash
 # 1) 构建多阶段镜像（阶段 1 Node 构建 React；阶段 2 Python 运行时）
@@ -60,12 +66,11 @@ docker compose up api
 ```
 
 **验证清单**：
-- [ ] 阶段 1 `npm ci && npm run build` 成功（React 产物进镜像）
-- [ ] 阶段 2 镜像构建成功、体积记录：＿＿＿
-- [ ] 容器启动后 `curl localhost:8080/api/health` 返回 `"status":"ok"`
-- [ ] **`curl localhost:8080/app` 返回 React index.html**（多阶段修复的
-      缺口——单阶段时代这里 404）
-- [ ] `curl localhost:8080/canvas` 返回 Canvas 大屏
+- [x] 阶段 1 `npm ci && npm run build` 成功（React 产物进镜像）✅ 2026-11-01，本机 Docker
+- [x] 阶段 2 镜像构建成功（镜像体积未记录，下次构建补记）✅ 2026-11-01
+- [x] 容器启动后 `/api/health` 返回 ok ✅ 冒烟 200
+- [x] **`/app` 返回 React index.html**（多阶段修复的缺口——单阶段时代这里 404）✅ 冒烟 200
+- [x] `/canvas` 返回 Canvas 大屏 ✅ 冒烟 200
 - [ ] `docker compose up` 后 `.env.local` 缺失也能起（LLM 如实离线）
 - [ ] 容器内注册→登录→跑一次任务 → 存档落在挂载卷 `tradepilot-data`
 
@@ -147,7 +152,8 @@ docstring 与 `tests/test_openapi_clients.py`）：
 
 ## 4. 上线前总检查
 
-- [ ] 全量测试：`python -m pytest tests -q`（当前 525 全绿基线不回退）
+- [ ] 全量测试：`python -m pytest tests -q`（当前 559 全绿基线不回退，见
+      production-integration.md 4.17）
 - [ ] 前端：`cd web-react && npm run check && npm run build`
 - [ ] `TRADEPILOT_JWT_SECRET` 显式配置（多实例必须）
 - [ ] `TRADEPILOT_ADMIN_TOKEN` 强随机值（运营后台开关）

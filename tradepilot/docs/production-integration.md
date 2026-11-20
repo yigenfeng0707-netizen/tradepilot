@@ -589,6 +589,54 @@ Shopee/Lazada 入驻需要企业资质与真实店铺——短期内拿不到凭
   （与签名无关的机械部分下沉公共层）。
 - 测试 +10（test_shopify.py），全量 559 passed。
 
+#### 4.17.1 真实联调 runbook（拿到 token 后一条命令验证）
+
+浏览器自动化在本机不稳定（Cloudflare Turnstile 需本人点击、调试端口活不过
+单次命令），因此**取 token 这步由店主在普通浏览器手动完成**，其余全链路用
+`scripts/verify_shopify.py` 一次性跑通（进程内直调适配器，真实 httpx 打
+Shopify，不依赖服务进程常驻）。
+
+**第一步：手动取 token（约 3 分钟，普通浏览器）**
+
+1. 打开 `https://partners.shopify.com` → 登录你的 Partner 账号（org 5295840）。
+2. Partners 后台 → **Stores** → **Add store** → **Create development store**
+   → 选 **Build a store for testing** → 填店名 → 保存。
+3. 进入新店 → 左下角 **Settings → Apps and sales channels → Develop apps**
+   → 若首次进入先点 **Allow development apps**。
+4. **Create an app** → 填 App 名（如 `tradepilot-test`）→ 创建。
+5. **Configure Admin API scopes** → 只勾这三个只读权限：
+   `read_shop`（部分版本在 Configuration 页，无则跳过）、`read_products`、
+   `read_orders` → **Save**。
+6. **API credentials** 页 → **Install app** → 成功后复制
+   **Admin API access token**（`shpat_` 开头，只显示一次）。
+7. 店铺域名：地址栏 `https://<店名>.myshopify.com/admin` 中的 `<店名>.myshopify.com`。
+
+**第二步：写凭证（不进仓库/聊天）**
+
+在 `tradepilot/.env.local`（已在 .gitignore）写两行：
+
+```
+SHOPIFY_SHOP=你的店名.myshopify.com
+SHOPIFY_TOKEN=shpat_你的token
+```
+
+**第三步：一条命令跑全链路**
+
+```bash
+cd D:/电商/tradepilot
+/d/miniconda3/python.exe scripts/verify_shopify.py
+```
+
+脚本依次验证：① connect 真实调 `/shop.json` → ② 授权关系落库 →
+③ 店铺级调用读真实商品 → ④ 读真实订单，输出逐项通过/失败报告。
+哪步失败会给出针对性排查提示（域名拼写 / scope 是否够 / 是否 Install 后复制）。
+脚本只读不写，token 仅本机内存使用，不外发、不回显（只打印掩码）。
+
+**已就绪的代码侧**：适配器、端点、归属闸门、前端集成页、10 条单测 +
+全量 559 passed + 脚本编排逻辑（mock 假 transport）均已验证；唯一缺口就是
+真实 token 这一步。拿到 token 后若脚本报错，把**错误码和排查提示**（不要贴
+token）发我，我据此定位。
+
 ---
 
 ## 5. 风险与对策

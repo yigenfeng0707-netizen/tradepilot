@@ -24,3 +24,10 @@ docx-build/
 
 # 助手工作区数据（本地状态，不入版本库）
 .workbuddy-ai/
+.workbuddy/
+
+# 助手运行态临时文件
+.wbapp_*.genie
+
+# 本地验证临时目录
+pg-verify-tmp/
