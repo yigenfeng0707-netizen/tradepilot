@@ -15,19 +15,22 @@ BP 里仍印着旧链接，而旧链接已经返回 403（网关报"不支持通
 
 ## 分享码
 
-发布出来的应用要带分享码，接口不带就 403。分享码等同访问凭证，
-但 BP 必须印出**评委能点开的链接**，所以默认值取当前正式发布的分享链接；
-需要换环境时用 `TRADEPILOT_SHARE_URL` 覆盖，不要改代码。
+旧托管网关要求分享码；当前魔搭创空间部署**无分享码闸门**，SHARE_URL 不带 query，
+SHARECODE 为空串（消费方对空分享码已容错）。若换回带闸门的环境，用
+`TRADEPILOT_SHARE_URL=https://host/?sharecode=xxx` 覆盖即可，消费方自动带上。
 """
 from __future__ import annotations
 
 import os
 from urllib.parse import urlsplit
 
-# 正式发布链接（含分享码）。覆盖方式：TRADEPILOT_SHARE_URL=https://host/?sharecode=xxx
+# 正式发布链接（魔搭创空间 Docker 型，gsym236998/tradepilot-opc）。
+# 历史地址（均已失效，勿回填）：fygrobert-tradepilot.ms.show（旧账号，推送 403）、
+# tradepilot.apps.workbuddy.host（旧托管，镜像过期 /app 404）。
+# 覆盖方式：TRADEPILOT_SHARE_URL=https://host/?sharecode=xxx
 SHARE_URL: str = os.environ.get(
     "TRADEPILOT_SHARE_URL",
-    "https://tradepilot.apps.workbuddy.host/?sharecode=4FAF5YBGRD",
+    "https://gsym236998-tradepilot-opc.ms.show",
 ).strip()
 
 _parts = urlsplit(SHARE_URL)

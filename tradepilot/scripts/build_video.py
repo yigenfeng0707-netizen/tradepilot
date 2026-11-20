@@ -34,7 +34,28 @@ W = 1440
 H = 900
 FRAME_DIR = os.path.join(tempfile.gettempdir(), "tp_frames")
 TTS_DIR = os.path.join(tempfile.gettempdir(), "tp_tts")
-FFMPEG = r"C:\Program Files\EVCapture\ffmpeg.exe"
+def _find_ffmpeg() -> str:
+    """自动定位 ffmpeg：优先 PATH，再试常见安装点。
+
+    旧版写死 C:\\Program Files\\EVCapture\\ffmpeg.exe，换机器就没了——
+    开发机上实际装在别处，脚本直接 FileNotFoundError。
+    """
+    import shutil
+    found = shutil.which("ffmpeg")
+    if found:
+        return found
+    for candidate in (
+        r"C:\Program Files\EVCapture\ffmpeg.exe",
+        r"C:\ffmpeg\bin\ffmpeg.exe",
+        r"C:\ffmpeg\ffmpeg-6.1.1-essentials_build\bin\ffmpeg.exe",
+        "/usr/bin/ffmpeg", "/usr/local/bin/ffmpeg",
+    ):
+        if os.path.exists(candidate):
+            return candidate
+    raise SystemExit("未找到 ffmpeg：请安装并加入 PATH，或把路径加进 _find_ffmpeg() 候选表")
+
+
+FFMPEG = _find_ffmpeg()
 FONT = r"C:\Windows\Fonts\msyh.ttc"
 FONT_BOLD = r"C:\Windows\Fonts\msyhbd.ttc"
 
@@ -103,6 +124,19 @@ def save_frame(name: str, img) -> str:
     return path
 
 
+def _ws_connect(url: str, ua: str):
+    """兼容 websockets 新旧 API：>=14 用 additional_headers，旧版用 extra_headers。
+
+    回归：websockets 15 里 extra_headers 被移除（TypeError: unexpected keyword
+    argument 'extra_headers'），视频生产线与云端验证脚本同时失效。
+    """
+    headers = {"User-Agent": ua, "Referer": "https://www.modelscope.cn/"}
+    try:
+        return websockets.connect(url, additional_headers=headers)
+    except TypeError:
+        return websockets.connect(url, extra_headers=headers)
+
+
 async def run_mission_events() -> dict:
     payload = {
         "goal": "把宠物用品切入美国站，先看真实市场再定价格与合规",
@@ -111,9 +145,11 @@ async def run_mission_events() -> dict:
         "unit_cost_cny": None, "target_margin_pct": 20.0,
     }
     events: dict = {"decisions": [], "results": {}}
-    async with websockets.connect(WS_URL, extra_headers={"User-Agent": UA}) as ws:
+    async with _ws_connect(WS_URL, UA) as ws:
         await ws.send(json.dumps(payload))
-        for _ in range(8):
+        # mission_start 也会占一条消息；旧版只读 8 条，恰好被 1+7 条决策吃满，
+        # mission_done（results 真正所在）永远读不到，视频里的价格/汇率全是 0。
+        for _ in range(40):
             msg = await asyncio.wait_for(ws.recv(), timeout=200)
             ev = json.loads(msg)
             if ev.get("type") == "decision":
@@ -125,7 +161,25 @@ async def run_mission_events() -> dict:
 
 
 def tts_speech(text: str, wav_path: str) -> None:
-    """PowerShell TTS：临时 ps1 放 %TEMP%，纯 ASCII 路径。"""
+    """生成旁白 WAV：edge-tts 优先 → Windows SAPI → 静音兜底。
+
+    旧版只走 PowerShell System.Speech，换到受限终端（脚本策略/COM 禁用）时
+    静默失败，ffmpeg 阶段才发现 wav 不存在。这里把失败显式降级，保证视频
+    生产线在无 SAPI 的机器上也能出片；静音帧仍保留字幕，不谎称有旁白。
+    """
+    os.makedirs(TTS_DIR, exist_ok=True)
+    mp3 = os.path.splitext(wav_path)[0] + ".mp3"
+    try:
+        import edge_tts  # 延迟导入：没装就走兜底，不让视频生产线整体不可用
+
+        asyncio.run(edge_tts.Communicate(text, "zh-CN-XiaoxiaoNeural").save(mp3))
+        subprocess.run([FFMPEG, "-y", "-i", mp3, "-ar", "24000", "-ac", "1", wav_path],
+                       check=True, capture_output=True)
+        if os.path.getsize(wav_path) > 44:
+            return
+    except Exception as exc:  # noqa: BLE001 - 网络/依赖/解码任一失败都要兜底
+        print(f"  edge-tts 不可用（{type(exc).__name__}），尝试 Windows SAPI")
+
     ps1 = os.path.join(TTS_DIR, f"tts_{int(time.time() * 1000)}.ps1")
     os.makedirs(TTS_DIR, exist_ok=True)
     content = (
@@ -137,8 +191,17 @@ def tts_speech(text: str, wav_path: str) -> None:
     )
     with open(ps1, "w", encoding="utf-16") as f:
         f.write(content)
-    subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
-                    "-File", ps1], check=True, capture_output=True)
+    try:
+        subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                        "-File", ps1], check=True, capture_output=True)
+    except Exception:  # noqa: BLE001 - SAPI 也不可用时出静音帧，字幕仍在
+        pass
+    if not os.path.exists(wav_path) or os.path.getsize(wav_path) <= 44:
+        with wave.open(wav_path, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(24000)
+            w.writeframes(b"\x00\x00" * 24000 * 2)
 
 
 def wav_duration(path: str) -> float:
@@ -227,9 +290,8 @@ def main() -> None:
         "-i", os.path.join(TTS_DIR, "00-open.wav"),
         "-filter_complex",
         f"[0:v]scale={W}:{H}[v];"
-        f"[1:a]apad=whole_dur={total:.2f},volume=1.2[narr];"
-        f"[v][narr]-shortest[out]",
-        "-map", "[out]", "-c:v", "libx264", "-preset", "medium", "-crf", "22",
+        f"[1:a]apad=whole_dur={total:.2f},volume=1.2[narr]",
+        "-map", "[v]", "-map", "[narr]", "-shortest", "-c:v", "libx264", "-preset", "medium", "-crf", "22",
         "-c:a", "aac", "-b:a", "128k", "-r", "24", "-pix_fmt", "yuv420p",
         out_mp4,
     ]

@@ -1,9 +1,13 @@
-# TradePilot 容器镜像 —— 同时适配本地 Docker 与 Google Cloud Run
-# 关键约束（Cloud Run）：
-#   1. PORT 由平台注入，必须读取而非写死（本地 docker run 仍可用 -p 8080:8080）；
-#   2. 根文件系统只读，只有 /tmp 可写 → 数据目录默认指向 /tmp（可用挂载卷覆盖）；
-#   3. 无沙箱环境必须 --no-sandbox，且 /dev/shm 很小 → --disable-dev-shm-usage（见 app/tools/fetch.py）；
-#   4. 必须监听 0.0.0.0 并信任反代头（Cloud Run 在容器前终止 TLS）。
+# TradePilot 容器镜像 —— 适配魔搭创空间（Docker 型）/ 本地 Docker / Google Cloud Run
+# 关键约束（各环境端口语义）：
+#   1. 魔搭创空间：**不会注入 PORT 环境变量**，健康检查固定探测创建时设定的
+#      app_port（本空间 7860）。默认端口必须与之一致，否则镜像构建成功、应用
+#      照常启动，健康检查却在另一个端口上 300s 超时 → DeployFailed（2026-11-16 实测）；
+#   2. Cloud Run：运行时注入 PORT 覆盖 ENV 默认值，无需改镜像；
+#   3. 本地 docker run：-p 映射 + 可选 -e PORT 覆盖；
+#   4. 根文件系统只读，只有 /tmp 可写 → 数据目录默认指向 /tmp（可用挂载卷覆盖）；
+#   5. 无沙箱环境必须 --no-sandbox，且 /dev/shm 很小 → --disable-dev-shm-usage（见 app/tools/fetch.py）；
+#   6. 必须监听 0.0.0.0 并信任反代头（魔搭网关与 Cloud Run 都在容器前终止 TLS）。
 #
 # 多阶段构建（M3-④）：阶段 1 用 Node 构建 React 主前端产物，阶段 2 拷进
 # 运行时镜像。单阶段时代只 COPY 了 web/（Canvas 大屏），镜像里没有
@@ -30,7 +34,7 @@ ARG APT_MIRROR_HOST=""
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    PORT=8080 \
+    PORT=7860 \
     TRADEPILOT_CHROMIUM=/usr/bin/chromium \
     TRADEPILOT_DATA_DIR=/tmp/tradepilot
 
@@ -60,11 +64,11 @@ COPY --from=web-build /web/dist /app/web-react/dist
 
 RUN mkdir -p /tmp/tradepilot/missions
 
-EXPOSE 8080
+EXPOSE 7860
 
 # 健康检查用 python 标准库，不依赖 curl/wget（基础镜像里没装，装了也只是多一层风险）。
 # 打的是 /api/health：它同时回报存证条数与数据目录，服务活着但存储没挂上的情况一并覆盖。
 HEALTHCHECK --interval=30s --timeout=6s --start-period=25s --retries=3 \
-  CMD python -c "import os,sys,urllib.request as u; p=os.environ.get('PORT','8080'); sys.exit(0 if u.urlopen('http://127.0.0.1:'+p+'/api/health', timeout=5).status==200 else 1)"
+  CMD python -c "import os,sys,urllib.request as u; p=os.environ.get('PORT','7860'); sys.exit(0 if u.urlopen('http://127.0.0.1:'+p+'/api/health', timeout=5).status==200 else 1)"
 
-CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080} --proxy-headers --forwarded-allow-ips=*"]
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-7860} --proxy-headers --forwarded-allow-ips=*"]

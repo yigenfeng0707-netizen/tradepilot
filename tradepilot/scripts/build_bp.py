@@ -60,6 +60,15 @@ if HAS_REPORTLAB:
 ROOT = Path(__file__).resolve().parents[1]
 EVAL_JSON = ROOT / "assets" / "eval_results.json"
 
+# 赛事名的单一来源：BP 封面印的赛事必须随目标赛事走，不再硬编码。
+# 上一版把「第二届全国人工智能应用创新大赛」写死在封面，换赛事后整段过期。
+# 环境变量可覆盖，便于同一次项目打多场比赛时只改一处。
+COMPETITION = os.environ.get(
+    "TRADEPILOT_COMPETITION",
+    "OPC 创新黑客松 2026 海南城市赛 · 商业生产力赛道"
+    "（命题：和 AI 一起，把想法变成生意）",
+)
+
 
 def _typical_steps(runs: list) -> int:
     """标准任务实际执行的步数（取各轮中位数）。
@@ -95,8 +104,15 @@ def measured_facts() -> dict:
         for f in list(d.rglob("*.py")) + list(d.rglob("*.js")) + list(d.rglob("*.html")):
             loc += len(f.read_text("utf-8", errors="ignore").splitlines())
             files += 1
-    tests = sum(len([1 for _ in f.read_text("utf-8", errors="ignore").splitlines()
-                     if _.strip().startswith("def test_")])
+    # 统计用例数：同步 def test_ 与异步 async def test_ 都要算。
+    # 旧版只匹配行首 "def test_"，漏掉 105 个 async def test_，BP 印 463 而 pytest 实跑 568——
+    # 三方口径一致性红线被一处静默的计数 bug 破坏，评委一问即穿。
+    def _is_test_line(line: str) -> bool:
+        s = line.strip()
+        return s.startswith("def test_") or s.startswith("async def test_")
+
+    tests = sum(len([1 for line in f.read_text("utf-8", errors="ignore").splitlines()
+                     if _is_test_line(line)])
                 for f in (ROOT / "tests").glob("test_*.py"))
 
     trace = ev.get("source_traceability_overall") or {}
@@ -186,7 +202,7 @@ def build_bp(output):
     E.append(Spacer(1, 35 * mm))
     E.append(Paragraph("TradePilot · 跨境领航员", TITLE))
     E.append(Paragraph("跨境电商全链路智能运营 OPC 智能体", SUB_ST))
-    E.append(Paragraph("第二届全国人工智能应用创新大赛 · 通用赛道（AI Agent 赋能千行百业 · 出海）", SUB_ST))
+    E.append(Paragraph(COMPETITION, SUB_ST))
     E.append(Spacer(1, 12 * mm))
     E.append(kv_table([
         ("项目定位", "给一人公司（OPC）用的跨境电商 AI 运营部"),
@@ -198,7 +214,7 @@ def build_bp(output):
          f"来源可溯率 {f['trace_detail']}；{f['tests']} 项离线单测全绿"),
     ]))
     E.append(Spacer(1, 5 * mm))
-    E.append(Paragraph("日期：2026-10-31　·　版本：v1.2（新增容器化部署验证；评测数据口径见第五章）", SUB_ST))
+    E.append(Paragraph("日期：2026-11-18　·　版本：v1.4（对齐 OPC 海南城市赛；公网 Demo 已公开可访问并过漂移门禁；评测数据口径见第五章）", SUB_ST))
     E.append(PageBreak())
 
     # 一、项目概述
@@ -335,9 +351,11 @@ def build_bp(output):
                        f"{f['tests']} 项离线单测", "10 月 30 日"],
             ["已完成", "容器化部署验证：Cloud Run 实测冷启动 6.8s、密钥托管于 Secret Manager、"
                        "缩容到 0 时按免费额度计费", "10 月 31 日"],
-            ["提交前", "公网上线并重验发布面（check_release_drift 全绿）+ 人工基线 SOP 掐表 + 30 条事实抽检回访", "11-05 ~ 11-08"],
-            ["提交", "官网报名与作品上传（截止 11-10 24:00）", "11-10 中午前"],
-            ["赛后", "接入需官方 API 授权的真实美国站竞品带；选品雷达升级为需求侧评分", "11 月下旬起"],
+            ["已完成", "公网 Demo 公开可访问：魔搭创空间 8 端点实测 + 发布面漂移门禁全绿", "11-18"],
+            ["进行中", "对齐本届命题的 OPC「想法→生意」作战简报 + 人工基线 SOP 掐表 + 事实抽检回访", "11-18 ~ 11-19"],
+            ["提交", "报名 OPC 海南城市赛（商业生产力赛道）+ 作品与链接提交（官网截止 11-23，今日执行）", "11-18（今日）"],
+            ["城市赛", "海口经济学院现场路演：8 工具 live 演示 + 答辩；争取前 10 晋级", "11-26 ~ 11-27"],
+            ["总决赛", "全国总决赛（海南数据谷 OPC 社区）；接入需官方 API 授权的真实美国站竞品带", "12-05 ~ 12-06"],
         ],
         [22 * mm, 110 * mm, 44 * mm],
     ))

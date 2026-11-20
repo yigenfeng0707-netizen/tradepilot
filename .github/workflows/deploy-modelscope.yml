@@ -33,7 +33,7 @@ concurrency:
 
 env:
   MODELSCOPE_DOMAIN: www.modelscope.cn
-  DEMO_URL: https://fygrobert-tradepilot.ms.show
+  DEMO_URL: https://gsym236998-tradepilot-opc.ms.show
 
 jobs:
   test:
@@ -191,6 +191,25 @@ jobs:
           echo "----- logs/build -----"; curl -sS "$api/logs/build" -H "Authorization: Bearer $TOKEN" | tail -n 120 || true
           echo "----- logs/run -----";  curl -sS "$api/logs/run"   -H "Authorization: Bearer $TOKEN" | tail -n 120 || true
           exit 1
+
+      - name: 设为公开可访问（评委无需登录魔搭账号）
+        if: steps.preflight.outputs.ready == 'true'
+        shell: bash
+        env:
+          TOKEN: ${{ secrets.MODELSCOPE_TOKEN }}
+          OWNER: ${{ vars.MODELSCOPE_OWNER }}
+          REPO: ${{ vars.MODELSCOPE_REPO }}
+        run: |
+          set -euo pipefail
+          api="https://$MODELSCOPE_DOMAIN/openapi/v1/studios/$OWNER/$REPO"
+          echo "== PATCH settings: visibility=public =="
+          curl -sS -X PATCH "$api/settings" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"visibility":"public"}'; echo
+          echo "== 复核可见性 =="
+          curl -sS "$api" -H "Authorization: Bearer $TOKEN" \
+            | python3 -c "import sys,json;d=json.load(sys.stdin).get('data',{});print('visibility=',d.get('visibility'),'private=',d.get('private'))"
 
       - name: 部署后复核发布面（线上真跑的是不是这份代码）
         if: steps.preflight.outputs.ready == 'true'

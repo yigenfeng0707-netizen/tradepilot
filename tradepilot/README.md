@@ -80,7 +80,7 @@ app/
 web/                      岸基运营大屏（原生 Canvas，/canvas 独立路由）
 web-react/                主前端（React 18 + Vite + TS + Tailwind，/app 路由）
 scripts/                  运维工具（Postgres 迁移导出、部署、截图等）
-tests/                    548 个用例（解析器/闸门/定价/规划器/审计/清洗/关键词/雷达/导出/评测口径/
+tests/                    570 个用例（解析器/闸门/定价/规划器/审计/清洗/关键词/雷达/导出/评测口径/
                           认证/租户隔离/开放平台客户端/店铺授权与调用网关/配额/用量/监控/运营后台/看板趋势）
 ```
 
@@ -129,7 +129,7 @@ set LLM_MODEL=Atria-Dawn
 | `TRADEPILOT_ADMIN_TOKEN` | 运营后台令牌（`/api/admin/*`）；未配置 = 后台关闭 | 空（关闭） |
 | `SHOPEE_PARTNER_ID` / `SHOPEE_PARTNER_KEY` | Shopee 开放平台凭证（`.env.local`，未配置如实报未接入） | 空 |
 | `LAZADA_APP_KEY` / `LAZADA_APP_SECRET` | Lazada 开放平台凭证（同上） | 空 |
-| `PORT` | 监听端口（Cloud Run 注入） | 8080 |
+| `PORT` | 监听端口（Cloud Run 运行时注入；镜像默认 7860 = 魔搭健康检查端口） | 7860 |
 
 ## 任务流（规划图 8 个工具；标准任务执行 8 步 = 8 张决策卡 + 一份可溯源上架包）
 
@@ -265,7 +265,8 @@ python scripts/human_baseline.py spotcheck --limit 10       # 逐条回访存证
 | WS | `/ws/mission` | 下达任务，流式回推决策卡与最终报告 |
 | GET | `/api/missions` | 历史任务列表（登录后只见本租户的） |
 | GET | `/api/missions/{id}` | 任务原始报告（跨租户与不存在同回 404） |
-| GET | `/api/missions/{id}/export?format=md\|json\|docx` | 导出上架包 / 原始报告 |
+| GET | `/api/missions/{id}/export?format=md\|json\|docx\|opc` | 导出上架包 / 原始报告 / OPC「想法→生意」简报 |
+| GET | `/api/opc/brief` | 最新一次任务的 OPC「想法→生意」价值链简报（JSON，现场讲命题用；无归档任务 404） |
 | GET | `/api/provenance/{id}` | 单条存证详情（URL / 抓取时间戳 / 内容 hash / 原文片段） |
 | GET | `/api/provenance` | 存证清单（`?kind=&limit=`，上限 200）——现场随机回访与事实抽检用 |
 | POST | `/api/auth/register` · `/login` · `/refresh` · `/logout` | 多租户认证（argon2id + JWT + 刷新轮换） |
@@ -280,7 +281,7 @@ python scripts/human_baseline.py spotcheck --limit 10       # 逐条回访存证
 ## 测试
 
 ```bash
-python -m pytest tests -q      # → 548 passed（全离线：不联网、不污染生产存证库）
+python -m pytest tests -q      # → 570 passed（全离线：不联网、不污染生产存证库）
 ```
 
 覆盖：解析器 / 来源闸门 / 定价 / 规划器与自主性指标 / 文案审计 / 检索词清洗 /
@@ -294,7 +295,7 @@ Postgres 迁移导出自检 / 集成端点（401/404/409/502 语义分层）。
 ## 部署
 
 - Google Cloud Run：见 [`docs/gcp-deploy.md`](docs/gcp-deploy.md)（PORT 注入、只读文件系统、持久化三种方案与取舍）
-- 魔搭创空间：镜像已改为读取 `PORT`，部署时设 `PORT=7860` 即可沿用原配置
+- 魔搭创空间：镜像默认端口即 7860（与魔搭健康检查端口一致），无需显式设置任何环境变量
 
 ### 发布面门禁（部署后必跑）
 
