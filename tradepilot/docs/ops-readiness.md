@@ -216,3 +216,20 @@ python scripts/production_gate.py check     # 8/8 才退出 0
 是生成物（已 gitignore），测试与 CI 的实测值由人工从 run 记录回填——
 **门禁不联网猜、不拿旧结果冒充当前提交**。当前预期 FAIL 的项：G5（真实 API）、
 G6（人工评测）、G7（定价）、G4（密钥实体，待 U-1 吊销后删除）。
+
+---
+
+## 7. 线上一致性核验（2026-11-20 18:35）
+
+魔搭创空间部署 run `44711099929` success，headSha=`6165463cd30617ab47afa672f4eaa639a34e5084`
+与本地 HEAD 完全一致。核验命令与结果：
+
+```bash
+python scripts/check_release_drift.py --base https://gsym236998-tradepilot-opc.ms.show
+# 工具白名单 8/8、/api/provenance、Canvas 大屏、静态 app.js sha256 全 OK
+```
+
+- 浏览器 UA 下 `/api/health`、`/app`、`/canvas`、`/api/tools` 全 **200**。
+- 裸 `curl`（默认 UA）返回 403「不支持通过 SDK Token 直接访问」是魔搭网关按 UA 判定，
+  **不是死链**；评委用浏览器访问正常。对外发布链接有效。
+- 线上一致性属于 G8 佐证，不改变 G4–G7 的红色结论。
