@@ -8,6 +8,8 @@ tradepilot/.llm_key
 tradepilot/.listinggood_key
 # 联调产物：含店铺域名，本机生成供门禁 G5 读取，不入库
 tradepilot/assets/shopify_verify_result.json
+# 密钥退役审计日志（运行追加产物，非源码）
+tradepilot/docs/security/key-retirement.log
 
 # 生成物：生产门禁证据（由 production_gate.py collect 刷新，非源码）
 tradepilot/docs/production-evidence.json
