@@ -67,6 +67,10 @@ async def main() -> int:
         print(f"✗ TOKEN 形态不对：自定义 App token 应以 shpat_ 开头（收到 {mask(token)}）")
         return 2
 
+    # 归属表幂等初始化：干净环境（无历史 DB）也能跑通联调，
+    # 否则 shops.authorize 会因 shop_authorizations 表不存在而崩溃。
+    shops.init_db()
+
     shop = shopify.normalize_shop(shop)
     print(f"目标店铺：{shop}")
     print(f"TOKEN：{mask(token)}（仅本机内存使用）")
