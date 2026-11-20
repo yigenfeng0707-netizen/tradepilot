@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -133,9 +134,11 @@ def evaluate(evidence: dict, head_commit: str | None = None) -> list[GateResult]
 
 
 def _git(*args: str) -> str:
+    # 必须在**外层仓库**跑 git：tradepilot/.git 是无 remote 的遗留仓，
+    # 在那里问 HEAD/branch 会得到 79921ed 这种假答案。
     try:
         return subprocess.run(
-            ["git", *args], cwd=ROOT, capture_output=True, text=True,
+            ["git", *args], cwd=ROOT.parent, capture_output=True, text=True,
             timeout=20, check=False,
         ).stdout.strip()
     except (OSError, subprocess.SubprocessError):
@@ -150,11 +153,13 @@ def _read_json(path: Path) -> dict:
 
 
 def _looks_like_secret(text: str) -> bool:
-    """排除文档里的 shpat_xxxxxxxx 示例，只认看起来像真 token 的串。"""
-    return (
-        "shpat_" in text and "xxxx" not in text
-    ) or (
-        "sk-" in text and any(ch.isdigit() for ch in text) and "example" not in text.lower()
+    """只认够长、非占位的 token 形态；文档示例与测试假值不算泄露。"""
+    lowered = text.lower()
+    if any(mark in lowered for mark in ("xxxx", "example", "fake", "your_token", "你的token")):
+        return False
+    return bool(
+        re.search(r"shpat_[A-Za-z0-9]{20,}", text)
+        or re.search(r"sk-[A-Za-z0-9]{24,}", text)
     )
 
 

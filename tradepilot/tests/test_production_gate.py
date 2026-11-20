@@ -62,7 +62,8 @@ class TestProductionGate(unittest.TestCase):
 
     def test_secret_detector_ignores_documented_examples(self):
         self.assertFalse(gate._looks_like_secret("SHOPIFY_TOKEN=shpat_xxxxxxxxxxxxxxxx"))
-        self.assertTrue(gate._looks_like_secret("token=shpat_ABCDEFGH12345678"))
+        self.assertFalse(gate._looks_like_secret("token=shpat_ABCDEFGH12345678"))
+        self.assertTrue(gate._looks_like_secret("token=shpat_ABCDEFGH12345678XYZW"))
 
 
 if __name__ == "__main__":
