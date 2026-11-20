@@ -80,8 +80,9 @@ app/
 web/                      岸基运营大屏（原生 Canvas，/canvas 独立路由）
 web-react/                主前端（React 18 + Vite + TS + Tailwind，/app 路由）
 scripts/                  运维工具（Postgres 迁移导出、部署、截图等）
-tests/                    570 个用例（解析器/闸门/定价/规划器/审计/清洗/关键词/雷达/导出/评测口径/
-                          认证/租户隔离/开放平台客户端/店铺授权与调用网关/配额/用量/监控/运营后台/看板趋势）
+tests/                    583 个用例（解析器/闸门/定价/规划器/审计/清洗/关键词/雷达/导出/评测口径/
+                          认证/租户隔离/开放平台客户端/店铺授权与调用网关/配额/用量/监控/运营后台/看板趋势/
+                          密钥清理红线/Shopify 联调编排/生产就绪门禁）
 ```
 
 ## 快速开始
@@ -281,7 +282,8 @@ python scripts/human_baseline.py spotcheck --limit 10       # 逐条回访存证
 ## 测试
 
 ```bash
-python -m pytest tests -q      # → 570 passed（全离线：不联网、不污染生产存证库）
+python -m pytest tests -q      # → 583 passed（全离线：不联网、不污染生产存证库）
+python scripts/production_gate.py check   # 8 项生产就绪门禁；未验证项如实 FAIL，不估算
 ```
 
 覆盖：解析器 / 来源闸门 / 定价 / 规划器与自主性指标 / 文案审计 / 检索词清洗 /
@@ -291,6 +293,20 @@ python -m pytest tests -q      # → 570 passed（全离线：不联网、不污
 认证与租户隔离 / 开放平台客户端（两家签名与信封差异）/ 店铺授权归属与调用网关闸门 /
 配额扣减与回滚 / token 用量计量 / 监控告警 / 运营后台 / 看板趋势补零 /
 Postgres 迁移导出自检 / 集成端点（401/404/409/502 语义分层）。
+
+### 生产就绪门禁（交付前必跑）
+
+`scripts/production_gate.py` 把"能不能对外称生产级"拆成 8 项：测试与构建、
+GitHub CI、分支同源、无明文凭证、真实平台联调、人工评测实数、定价决策、文档无漂移。
+可自动采集的字段由 `collect` 刷新；测试/CI 只认证测值，**门禁不代填、不估算**：
+
+```bash
+python scripts/production_gate.py collect   # 刷新 git/评测/密钥/联调/定价/忽略规则
+python scripts/production_gate.py check     # 8/8 才退出 0，否则逐项列出阻塞
+```
+
+人工基线、30 点抽检、真实 token、运营定价、网关吊销这五项按红线只能由本人完成，
+门禁会如实 FAIL，直到证据文件反映真实结果。
 
 ## 部署
 
@@ -348,9 +364,16 @@ python scripts/deploy_clean.py restore                # 部署后移回，本地
 | M3 | 认证（argon2id + JWT + 刷新令牌轮换）、租户隔离、Shopee/Lazada HTTP 客户端、CI、监控、Postgres 迁移工具包 | ✅ |
 | M4 | 租户 LLM 配额、运营后台、数据看板、token 用量计量、店铺授权归属 + 调用网关 + 店铺集成页 | ✅ |
 
-**待环境联调**（步骤已备好）：Shopee/Lazada 真实凭证联调
-（MockTransport 只证明"我们发什么、怎么判成败"，不证明平台服务端接受
-签名——那必须用真实凭证跑一次）。
+**待环境联调 / 本人决策**（步骤与脚本均已备好，门禁如实判 FAIL）：
+
+1. Shopify：Partners 建开发店取 `shpat_` token → 写 `.env.local` → `python scripts/verify_shopify.py`
+   （成功后自动写脱敏结论 `assets/shopify_verify_result.json` 供门禁 G5 读取）。
+2. Shopee/Lazada 真实凭证联调；MockTransport 只证明"我们发什么、怎么判成败"，
+   不证明平台服务端接受签名——那必须用真实凭证跑一次。
+3. 人工基线掐表 + 30 点事实抽检（禁估算，脚本 `human_baseline.py` 已就位）。
+4. 定价决策：复制 `config/pricing.example.json` 为 `config/pricing.json` 填真实价格。
+5. 网关吊销 `.llm_key` / `.listinggood_key` 后，跑
+   `python scripts/retire_keys.py --revoked --apply` 删除本地明文实体（无 `--revoked` 一律拒绝）。
 
 **已真实验证**（2026-11-01）：Postgres 16 容器装载（DDL + 真实数据
 159 行 + 序列接续，见 4.11）；Docker 多阶段镜像构建 + 容器冒烟

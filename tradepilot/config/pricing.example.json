@@ -1,0 +1,11 @@
+{
+  "_说明": "运营决策模板：复制为 pricing.json 并填入真实价格后，生产门禁 G7 才会通过。代码侧不编造单价。",
+  "_成本依据": "docs/pricing-decision.md（真实 token 样本 + 计算公式）",
+  "currency": "CNY",
+  "plans": [],
+  "_填写规则": [
+    "plans 数组为空 = 未决策，门禁如实判 FAIL",
+    "每个套餐至少包含 id/name/monthly_cny/quota_per_day/notes",
+    "价格来自运营决策，不从 token 样本自动推算"
+  ]
+}

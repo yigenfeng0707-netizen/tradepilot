@@ -2,7 +2,13 @@
 .edge-profile/
 *.session
 .env
+.env.local
+tradepilot/.env.local
 tradepilot/.llm_key
+tradepilot/.listinggood_key
+
+# 生成物：生产门禁证据（由 production_gate.py collect 刷新，非源码）
+tradepilot/docs/production-evidence.json
 
 # Python
 __pycache__/

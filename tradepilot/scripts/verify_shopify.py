@@ -17,8 +17,10 @@
 脚本只读商品/订单/店铺信息，不写任何数据；token 仅本机内存使用，不外发。
 """
 import asyncio
+import json
 import os
 import sys
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, ".")
@@ -28,6 +30,8 @@ from app.datasources import marketplace_auth as mauth  # noqa: E402
 from app import shops  # noqa: E402
 
 ENV_LOCAL = Path(__file__).resolve().parent.parent / ".env.local"
+RESULT_FILE = (Path(__file__).resolve().parent.parent / "assets"
+               / "shopify_verify_result.json")   # 只写脱敏结论，供生产门禁读取
 CHECK_TENANT = "verify-shopify-local"   # 联调用临时租户归属，不污染真实租户
 
 
@@ -116,6 +120,17 @@ async def main() -> int:
         return 1
     ords = (orders.data or {}).get("orders") or []
     print(f"✓ 读到 {len(ords)} 个订单（0 个对新店是正常的）：")
+
+    # 脱敏结论落盘：生产门禁据此判定 G5，绝不写 token / 店铺域名以外的敏感字段。
+    RESULT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    RESULT_FILE.write_text(json.dumps({
+        "verified": True,
+        "checked_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "shop": shop,
+        "products": len(items),
+        "orders": len(ords),
+        "note": "由 scripts/verify_shopify.py 真实联调生成；token 不落盘",
+    }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     print("\n" + "=" * 60)
     print("✓✓ Shopify 全链路联调通过：connect → 归属 → 商品/订单真实读取")

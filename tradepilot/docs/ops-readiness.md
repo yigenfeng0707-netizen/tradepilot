@@ -152,7 +152,7 @@ docstring 与 `tests/test_openapi_clients.py`）：
 
 ## 4. 上线前总检查
 
-- [ ] 全量测试：`python -m pytest tests -q`（当前 559 全绿基线不回退，见
+- [ ] 全量测试：`python -m pytest tests -q`（当前 **583** 全绿基线不回退，见
       production-integration.md 4.17）
 - [ ] 前端：`cd web-react && npm run check && npm run build`
 - [ ] `TRADEPILOT_JWT_SECRET` 显式配置（多实例必须）
@@ -161,3 +161,38 @@ docstring 与 `tests/test_openapi_clients.py`）：
 - [ ] `/api/metrics` 的 alarms 为空
 - [ ] robots 闸门开启（`TRADEPILOT_RESPECT_ROBOTS=1`）
 - [ ] 存证库备份策略就位（provenance.db 是信任底座，丢了无法重建）
+
+---
+
+## 5. 明文密钥退役 runbook
+
+**状态（2026-11-20）**：`.llm_key`(68B) 与 `.listinggood_key`(51B) 实体仍在；
+两者已被 `.gitignore` 覆盖、从未入库，但**实体存在 != 已吊销**。
+
+顺序不能反：
+
+1. 在服务商网关控制台**吊销旧 Key**，留存吊销回执（时间、Key 标识）。
+2. 确认线上/沙箱不再依赖旧 Key；需要时先换发新 Key 并改注入方式（env / Secret Manager）。
+3. 本地执行（默认只检查；没有 `--revoked` 时 `--apply` 会被脚本拒绝）：
+
+```bash
+python scripts/retire_keys.py --check                 # 看文件名/大小/sha256 前 12 位
+python scripts/retire_keys.py --revoked --apply       # 确认吊销后才真正删除
+```
+
+4. 审计记录写在 `docs/security/key-retirement.log`，只有哈希前缀与字节数，**不含密钥内容**。
+5. 生产门禁 G4 会在文件仍存在时保持 FAIL，不因为"看起来没人用"而放行。
+
+---
+
+## 6. 生产就绪门禁
+
+```bash
+python scripts/production_gate.py collect   # 刷新 git 同步 / 人工维度 / 密钥 / 联调 / 定价 / 忽略规则
+python scripts/production_gate.py check     # 8/8 才退出 0
+```
+
+8 项含义见 README「生产就绪门禁」。证据文件 `docs/production-evidence.json`
+是生成物（已 gitignore），测试与 CI 的实测值由人工从 run 记录回填——
+**门禁不联网猜、不拿旧结果冒充当前提交**。当前预期 FAIL 的项：G5（真实 API）、
+G6（人工评测）、G7（定价）、G4（密钥实体，待 U-1 吊销后删除）。
