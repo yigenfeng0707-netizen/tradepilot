@@ -217,6 +217,19 @@ python scripts/production_gate.py check     # 8/8 才退出 0
 **门禁不联网猜、不拿旧结果冒充当前提交**。当前预期 FAIL 的项：G5（真实 API）、
 G6（人工评测）、G7（定价）、G4（密钥实体，待 U-1 吊销后删除）。
 
+### 6.1 四项人工项的提供顺序（避免 G4/G5 互相打架）
+
+G4 把 `.env.local` 也算作明文凭证实体（与两个旧 key 并列），而 G5 联调又必须
+先有 `.env.local`。**所以顺序不能反**：
+
+1. 先写 `.env.local` → 跑 `verify_shopify.py` → 成功时脚本写脱敏结论
+   `assets/shopify_verify_result.json`（G5 变绿，结论与 token 无关）。
+2. **联调成功后删除 `.env.local`**（token 已验证、结论已落盘，不再需要明文）。
+   `retire_keys.py` 默认只删 `.llm_key`/`.listinggood_key`，不含 `.env.local`，
+   需手动删或用 `--key .env.local` 指定。
+3. 网关吊销两个旧 key 后跑 `retire_keys.py --revoked --apply`，G4 才变绿。
+4. 若先删 `.env.local` 再联调，G4 会因文件重现而回退 FAIL——务必按此顺序。
+
 ---
 
 ## 7. 线上一致性核验（2026-11-20 18:35）
