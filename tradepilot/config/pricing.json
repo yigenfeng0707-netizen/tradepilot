@@ -1,0 +1,30 @@
+{
+  "_说明": "运营定价决策表。正式版价格已由运营依据市场对标拍板并同步至前端 Pricing 页对外标价。",
+  "_定价依据": "市场对标（2026-11 公开报价）：Shopify Basic 39 USD/月（年付约 ¥199/月）、店匠 Shoplazza 基础版 28 USD/月（约 ¥154/月）、跨境刚需插件 10-50 USD/月。TradePilot 为 AI 全链路（市场洞察+选品+内容生成 9 语种+合规 7 国），定价取 ¥199/月，落于对标区间上沿。",
+  "_成本备注": "网关 token 单价需运营从书生·端砚后台补录；本表价格为市场对标决策，非成本核算价。真实 token 样本见 docs/pricing-decision.md（客服 86/650、Listing 239/1099）。",
+  "_决策日期": "2026-11-20",
+  "currency": "CNY",
+  "plans": [
+    {
+      "id": "beta",
+      "name": "内测版",
+      "monthly_cny": 0,
+      "quota_per_day": 100,
+      "notes": "内测期免费，与前端展示一致；日配额 100 点（全链路 4 点/次）"
+    },
+    {
+      "id": "pro",
+      "name": "正式版",
+      "monthly_cny": 199,
+      "quota_per_day": 2000,
+      "notes": "¥199/月（对标 Shopify Basic 年付价）；日配额 2000 点（默认 100 的 20 倍）；含多席位协作与 API 接口"
+    },
+    {
+      "id": "enterprise",
+      "name": "私有化部署",
+      "monthly_cny": null,
+      "quota_per_day": null,
+      "notes": "价格面议，数据不出域独立部署；null 表示非固定标价"
+    }
+  ]
+}
