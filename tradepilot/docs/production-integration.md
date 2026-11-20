@@ -374,6 +374,16 @@ React 前端只存在于开发机。改为多阶段构建：阶段 1 Node `npm c
 （requirements 漏 PyJWT/argon2-cffi、lifespan 漏 auth.init_db），干净容器
 冒烟自此列为改动后的固定验证。
 
+2026-11-20 全面复验：本地 Docker Desktop 守护进程重新启用后，多阶段镜像
+再次构建成功（1.54GB），单容器五个端点全 200；`docker compose up` 在
+无 `.env.local` 时正常起服，注册/登录/`auth/me` 全通、数据落进挂载卷并在
+容器重启后保留；干净容器内补装 dev 依赖跑全量 **583 passed / 32.88s**。
+本轮抓出并修复 `docker-compose.yml` 端口错配：原 `"${PORT:-8080}:8080"`
+在自定义 `PORT` 时会把流量导到容器里没人监听的旧端口，现两侧统一为
+`"${PORT:-8080}:${PORT:-8080}"`，以 `PORT=18081` 实测通过。
+Postgres 16 容器同步复验：233 条 provenance 装载、setval 233→234、
+payload md5 3/3 一致、quota/usage 幂等累计正确。
+
 CI（根仓库 `.github/workflows/ci.yml`）：backend（pytest 全量，数据目录指到
 runner 临时盘）+ frontend（`npm ci` + `tsc` + `build`），路径过滤
 `tradepilot/**`。**为什么在根不在 tradepilot/ 子树**：GitHub 只认仓库根的

@@ -312,6 +312,7 @@ python scripts/production_gate.py check     # 8/8 才退出 0，否则逐项列�
 
 - Google Cloud Run：见 [`docs/gcp-deploy.md`](docs/gcp-deploy.md)（PORT 注入、只读文件系统、持久化三种方案与取舍）
 - 魔搭创空间：镜像默认端口即 7860（与魔搭健康检查端口一致），无需显式设置任何环境变量
+- 本地 Compose：`PORT=18081 docker compose -p tp-verify up -d --build`；两侧端口统一由 `PORT` 控制（默认 8080），无 `.env.local` 也能起，LLM 如实离线
 
 ### 发布面门禁（部署后必跑）
 

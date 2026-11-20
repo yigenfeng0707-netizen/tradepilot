@@ -6,16 +6,20 @@
 # Postgres 迁移（M3-①）落地后：加 postgres:16 服务 + TRADEPILOT_DB=postgres://...
 # + 挂卷持久化，一次改完。
 #
-# 本机开发注意：Windows 上 Docker 守护进程不可用，此文件**未在开发机 build
-# 验证**；Dockerfile 语法经人工核对，等价命令（uvicorn 起服 + /api/health）
-# 已在开发机验证。首次在有 Docker 的环境构建时留意构建日志。
+# 本机开发：2026-11-20 已在本地 Docker Desktop 实测 build + up + 冒烟。
+# 端口由 PORT 统一控制（默认 8080），Dockerfile 默认 7860 是魔搭创空间约束。
 
 services:
   api:
     build: .
     ports:
-      - "${PORT:-8080}:8080"
+      # 两侧都用 PORT：默认 8080，自定义时容器监听与映射同步变化。
+      - "${PORT:-8080}:${PORT:-8080}"
     environment:
+      # 容器监听端口必须与上面 ports 的容器侧端口一致。
+      # Dockerfile 默认 7860（魔搭创空间健康检查固定端口），不显式设置会让
+      # compose 的 8080:8080 映射到空端口——镜像健康但外部连不上。
+      - PORT=${PORT:-8080}
       # 凭证类一律走 .env.local（已在 .gitignore），不写进 compose——
       # compose 文件会进仓库，写进去等于把密钥提交到 git。
       - LLM_API_KEY=${LLM_API_KEY:-}

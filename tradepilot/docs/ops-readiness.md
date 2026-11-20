@@ -40,41 +40,61 @@ psql -h localhost -U postgres -d tradepilot -f /tmp/pg_migrate.sql
 - [x] `SELECT COUNT(*) FROM provenance;` 与源库一致 ✅ 同上（103 行）
 - [x] `SELECT COUNT(*) FROM users;` / `tenants;` / `refresh_tokens;` 一致 ✅ 同上（18/18/20）
 - [x] 序列已拨到位：迁移后新插入得 max(id)+1=104，未撞主键 ✅ 同上
-- [ ] 中文/单引号 payload 完整：随机抽 3 条 `payload` 与源库 diff
+- [x] 中文/单引号 payload 完整：随机抽 3 条 `payload` 与源库 diff
+      ✅ 2026-11-20，md5 逐条一致（ids 23/32/41）
 
-**结果**：＿＿＿＿（日期/环境/执行人）
+**结果**：2026-11-20 复验，docker postgres:16 容器（PG 16.15），
+装载 2 tenants / 2 users / 0 refresh_tokens / 233 provenance，
+setval 233→nextval 234，中文与单引号往返 OK，quota/usage 两次 upsert
+累计正确（weight 3.0；calls 4 / prompt 172 / completion 1300），
+店铺授权重复插入仍 1 行。
 
 ---
 
 ## 2. Docker 构建验证
 
-**验证状态（2026-11-01 更新）**：WSL/HNS 修复后 Docker 可用——多阶段镜像
-build 成功，容器冒烟通过（注册 / `/api/health` / `/app` / `/canvas` 全 200；
-过程中修复两个干净环境 bug：requirements 漏 PyJWT/argon2-cffi、lifespan 漏
-auth.init_db）。详见 docs/production-integration.md 4.9。compose 全栈项与
-挂载卷存档项仍未逐项勾验。
+**验证状态（2026-11-20 全面复验）**：Docker Desktop 守护进程已启用
+（`29.9.3 | Docker Desktop`），本轮重新跑了完整链路：多阶段镜像 build 成功
+（镜像 `ce15b88dde93`，**1.54GB**）；单容器 `/api/health`、`/app`、`/canvas`、
+`/api/capabilities`、`/api/metrics` 全 200；`docker compose up` 在**无 `.env.local`**
+的情况下正常起服，LLM 如实离线；注册/登录/`auth/me` 链路全通，数据落进挂载卷；
+容器重启后账号仍可登录（卷持久化生效）；干净容器内补装 dev 依赖后
+`pytest` **583 passed / 32.88s**。
+
+本轮抓到并修复一个真 bug：`docker-compose.yml` 原来端口写死
+`"${PORT:-8080}:8080"`，而 Dockerfile 默认 `PORT=7860`；补上容器侧
+`PORT=${PORT:-8080}` 后，若用户自定义 `PORT` 仍会造成"容器监听新端口、
+映射到旧端口"的错配。现在两侧统一为 `${PORT:-8080}:${PORT:-8080}`，
+以 `PORT=18081` 实测通过。
+
+此前 2026-11-01 的验证记录：多阶段镜像 build 成功，容器冒烟通过（注册 /
+`/api/health` / `/app` / `/canvas` 全 200；过程中修复两个干净环境 bug：
+requirements 漏 PyJWT/argon2-cffi、lifespan 漏 auth.init_db）。详见
+docs/production-integration.md 4.9。
 
 ```bash
 # 1) 构建多阶段镜像（阶段 1 Node 构建 React；阶段 2 Python 运行时）
 docker build -t tradepilot:latest .
 
 # 2) 起容器（数据目录 /tmp 可写；Chromium 用系统包）
-docker run --rm -p 8080:8080 tradepilot:latest
+#    Dockerfile 默认 7860 是魔搭创空间约束，本地用 PORT 显式覆盖
+docker run --rm -p 8080:8080 -e PORT=8080 tradepilot:latest
 
 # 3) compose（凭证走 .env.local，可不存在）
-docker compose up api
+PORT=18081 docker compose -p tp-verify up -d --build
 ```
 
 **验证清单**：
-- [x] 阶段 1 `npm ci && npm run build` 成功（React 产物进镜像）✅ 2026-11-01，本机 Docker
-- [x] 阶段 2 镜像构建成功（镜像体积未记录，下次构建补记）✅ 2026-11-01
-- [x] 容器启动后 `/api/health` 返回 ok ✅ 冒烟 200
-- [x] **`/app` 返回 React index.html**（多阶段修复的缺口——单阶段时代这里 404）✅ 冒烟 200
-- [x] `/canvas` 返回 Canvas 大屏 ✅ 冒烟 200
-- [ ] `docker compose up` 后 `.env.local` 缺失也能起（LLM 如实离线）
-- [ ] 容器内注册→登录→跑一次任务 → 存档落在挂载卷 `tradepilot-data`
+- [x] 阶段 1 `npm ci && npm run build` 成功（React 产物进镜像）✅ 2026-11-01 / 2026-11-20
+- [x] 阶段 2 镜像构建成功 ✅ 2026-11-20，镜像大小 **1.54GB**
+- [x] 容器启动后 `/api/health` 返回 ok ✅ 单容器 + Compose 双形态 200
+- [x] **`/app` 返回 React index.html** ✅ 单容器 + Compose 200
+- [x] `/canvas` 返回 Canvas 大屏 ✅ 单容器 + Compose 200
+- [x] `docker compose up` 后 `.env.local` 缺失也能起（LLM 如实离线）✅ 2026-11-20
+- [x] 容器内注册→登录→`/auth/me` → 存档落在挂载卷 `tradepilot-data`，重启后仍可登录 ✅ 2026-11-20
+- [x] 干净容器内全量测试 ✅ 583 passed / 32.88s（容器内补装 requirements-dev.txt）
 
-**结果**：＿＿＿＿
+**结果**：2026-11-20，本机 Docker Desktop 29.9.3 + Windows，执行人：助手自动实测。
 
 ---
 
