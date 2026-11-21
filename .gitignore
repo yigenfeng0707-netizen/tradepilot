@@ -41,3 +41,13 @@ docx-build/
 
 # 本地验证临时目录
 pg-verify-tmp/
+
+# 归档区（历史分析文档、验证产物、技能包备份——只留本地，不入库）
+归档/
+
+# 验证/演示一次性产物（截图脚本 scripts/shot_*.py 可重新生成）
+tradepilot/verify_*.json
+tradepilot/shot_*.png
+tradepilot/pipeline_sse.txt
+tradepilot/auth_reg.json
+tradepilot/cg_*.json
