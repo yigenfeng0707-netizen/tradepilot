@@ -45,6 +45,7 @@ const emptyStates = (): Record<string, StepState> =>
 
 export default function Pipeline() {
   const [category, setCategory] = useState(categories[0]);
+  const [keyword, setKeyword] = useState('');
   const [region, setRegion] = useState(regions[0]);
   const [budget, setBudget] = useState('中');
   const [targetCountry, setTargetCountry] = useState(countries[0]);
@@ -74,7 +75,7 @@ export default function Pipeline() {
     try {
       await streamPipeline(
         {
-          category, region, budget, target_country: targetCountry,
+          category, keyword: keyword.trim(), region, budget, target_country: targetCountry,
           platform, target_language: targetLang,
         },
         (ev) => {
@@ -135,6 +136,15 @@ export default function Pipeline() {
               </div>
             </div>
           ))}
+          {/* 检索词：后端只内置了 3 个品类的检索词，其余品类不传 keyword 时
+              市场洞察/智能选品会诚实拒绝（不编造候选词）——留空即用内置词 */}
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">检索词（可选）</label>
+            <input type="text" value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              placeholder="如 water bottle，非内置品类必填"
+              className="rounded-lg bg-ocean-800 px-3 py-2 text-sm text-white border border-white/10 focus:border-jade-500 focus:outline-none w-52" />
+          </div>
         </div>
         <div className="flex items-center gap-4">
           <button onClick={handleRun} disabled={loading}

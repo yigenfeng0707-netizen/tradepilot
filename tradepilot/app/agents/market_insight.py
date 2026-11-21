@@ -79,7 +79,10 @@ async def _llm_summary(category: str, marketplace: str, band: dict[str, float],
         f"品类：{category}\n市场：{marketplace}\n"
         f"实时抓取 {len(items)} 条竞品，价格带 {currency} {band['min']:.2f}–{band['max']:.2f}，"
         f"中位 {currency} {band['median']:.2f}\n竞品样本：\n{facts}",
-        max_tokens=500,
+        # 推理模型（Atria-Dawn）会把 max_tokens 先花在 reasoning 上：实测 500 时
+        # 正文仅 50 字符（预算被推理吃光）→ JSON 解析失败 → 摘要白白降级为模板；
+        # 1200 实测正文 309 字符稳定通过。同款坑见 customer_service.py 注释
+        max_tokens=1200,
     )
     parsed = llm._extract_json(text or "")
     if parsed and isinstance(parsed.get("summary"), str):

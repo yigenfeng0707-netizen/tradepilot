@@ -721,12 +721,13 @@ export async function fetchFAQ(_category: string, _language: string = 'zh'): Pro
 
 // ===== 全链路（M2 待接入）=====
 export async function runPipeline(params: {
-  category: string; region?: string; budget?: string; target_country?: string;
+  category: string; keyword?: string; region?: string; budget?: string; target_country?: string;
   product_name?: string; platform?: string; target_language?: string;
 }): Promise<PipelineResult> {
   // 同步版本供脚本调用；浏览器走 streamPipeline（整链 2–3 分钟，同步请求会像卡死）
   return postRequest<PipelineResult>('/agents/pipeline', {
     category: params.category,
+    keyword: params.keyword || '',
     marketplace: toMarketplace(params.region),
     budget: params.budget || '中',
     target_country: params.target_country || '美国',
@@ -757,7 +758,7 @@ export interface PipelineEvent {
  */
 export async function streamPipeline(
   params: {
-    category: string; region?: string; budget?: string; target_country?: string;
+    category: string; keyword?: string; region?: string; budget?: string; target_country?: string;
     product_name?: string; platform?: string; target_language?: string;
     include_content?: boolean;
   },
@@ -769,6 +770,7 @@ export async function streamPipeline(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       category: params.category,
+      keyword: params.keyword || '',
       marketplace: toMarketplace(params.region),
       budget: params.budget || '中',
       target_country: params.target_country || '美国',
