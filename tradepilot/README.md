@@ -112,6 +112,12 @@ set LLM_MODEL=Atria-Dawn
 
 无 Key 时自动走规则规划，功能不缺、口径不变。
 
+**魔搭创空间线上接入 LLM**（Secret 是运行时注入，改完需重新部署才生效）：
+创空间 → 设置 → 环境变量 → 新增私密 Secret `LLM_API_KEY`（值即网关 key，无需 base_url
+和 model——走代码默认）。重启空间后 `/api/health` 返回 `"llm": true` 即生效；客服回复
+标 `generated_by="llm"`、`/api/metrics` 的 `llm_usage_today` 开始计 token。换网关时同
+处改 `LLM_BASE_URL` + `LLM_MODEL`（已实测备选见 `docs/llm-gateways.md`）。
+
 ## 常用环境变量
 
 | 变量 | 作用 | 默认 |
