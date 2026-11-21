@@ -85,8 +85,16 @@ async def chat(system: str, user: str, max_tokens: int = 800) -> str | None:
             reasoning = str(msg.get("reasoning_content") or "")
             if reasoning and "{" in reasoning:
                 return reasoning[reasoning.rfind("{"):]  # 尾段起点，交由调用方 _extract_json 兜底
+            # 200 但无可用正文（多为推理模型把预算花在 reasoning 上）：降级本身没错，
+            # 但原因必须可见，否则线上只会"莫名变模板"，无从排查
+            print(f"[llm] 网关 200 但无可用正文：finish_reason="
+                  f"{body.get('choices', [{}])[0].get('finish_reason')}，"
+                  f"content 长度={len(content)}，reasoning 长度={len(reasoning)} → 降级", flush=True)
             return None
-    except Exception:  # noqa: BLE001 — 网关故障一律降级，不让作品失败
+    except Exception as exc:  # noqa: BLE001 — 网关故障一律降级，不让作品失败
+        # 失败原因必须进运行日志（FC 控制台/魔搭 run logs 可见）：
+        # 静默吞掉等于把"线上莫名变模板"变成永远查不出的问题
+        print(f"[llm] 网关调用失败降级: {type(exc).__name__}: {exc}", flush=True)
         return None
 
 
