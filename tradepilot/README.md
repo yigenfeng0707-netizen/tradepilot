@@ -80,7 +80,7 @@ app/
 web/                      岸基运营大屏（原生 Canvas，/canvas 独立路由）
 web-react/                主前端（React 18 + Vite + TS + Tailwind，/app 路由）
 scripts/                  运维工具（Postgres 迁移导出、部署、截图等）
-tests/                    583 个用例（解析器/闸门/定价/规划器/审计/清洗/关键词/雷达/导出/评测口径/
+tests/                    584 个用例（解析器/闸门/定价/规划器/审计/清洗/关键词/雷达/导出/评测口径/
                           认证/租户隔离/开放平台客户端/店铺授权与调用网关/配额/用量/监控/运营后台/看板趋势/
                           密钥清理红线/Shopify 联调编排/生产就绪门禁）
 ```
@@ -288,7 +288,7 @@ python scripts/human_baseline.py spotcheck --limit 10       # 逐条回访存证
 ## 测试
 
 ```bash
-python -m pytest tests -q      # → 583 passed（全离线：不联网、不污染生产存证库）
+python -m pytest tests -q      # → 584 passed（全离线：不联网、不污染生产存证库）
 python scripts/production_gate.py check   # 8 项生产就绪门禁；未验证项如实 FAIL，不估算
 ```
 
@@ -380,7 +380,9 @@ python scripts/deploy_clean.py restore                # 部署后移回，本地
 3. 人工基线掐表 + 30 点事实抽检（禁估算，脚本 `human_baseline.py` 已就位）。
 4. 定价决策：复制 `config/pricing.example.json` 为 `config/pricing.json` 填真实价格。
 5. 网关吊销 `.llm_key` / `.listinggood_key` 后，跑
-   `python scripts/retire_keys.py --revoked --apply` 删除本地明文实体（无 `--revoked` 一律拒绝）。
+   `python scripts/retire_keys.py --revoked --apply` 删除本地明文实体
+   （无 `--revoked`/`--owner-decided` 一律拒绝；后者用于业主评估后决定不吊销的
+   免费测试 Key，日志如实区分两种删除路径）。
 
 **已真实验证**（2026-11-01）：Postgres 16 容器装载（DDL + 真实数据
 159 行 + 序列接续，见 4.11）；Docker 多阶段镜像构建 + 容器冒烟

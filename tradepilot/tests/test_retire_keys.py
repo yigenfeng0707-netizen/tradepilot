@@ -75,6 +75,25 @@ class TestRetireKeys(unittest.TestCase):
         self.assertNotIn(self.SECRET, text)
         self.assertNotIn(len(self.SECRET) * "x", text)
 
+    def test_owner_decided_apply_deletes_but_logs_unrevoked(self):
+        """业主决定不吊销（如免费测试 Key）：允许删除，但日志必须如实区分，不得写成已吊销。"""
+        code = retire_keys.retire_keys(
+            self.root,
+            [Path(".llm_key")],
+            revoked=False,
+            apply=True,
+            log_path=self.log,
+            owner_decided=True,
+        )
+        self.assertEqual(code, 0)
+        self.assertFalse(self.key.exists())
+        text = self.log.read_text(encoding="utf-8")
+        self.assertIn("DELETED_OWNER_DECIDED .llm_key", text)
+        self.assertIn("未在网关吊销", text)
+        self.assertNotIn("DELETED .llm_key", text)  # 不能伪装成"已吊销后删除"
+        self.assertIn("sha256=", text)
+        self.assertNotIn(self.SECRET, text)
+
     def test_missing_file_is_reported_not_fatal(self):
         code = retire_keys.retire_keys(
             self.root,

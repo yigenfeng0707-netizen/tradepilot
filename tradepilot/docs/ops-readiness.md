@@ -172,7 +172,7 @@ docstring 与 `tests/test_openapi_clients.py`）：
 
 ## 4. 上线前总检查
 
-- [ ] 全量测试：`python -m pytest tests -q`（当前 **583** 全绿基线不回退，见
+- [ ] 全量测试：`python -m pytest tests -q`（当前 **584** 全绿基线不回退，见
       production-integration.md 4.17）
 - [ ] 前端：`cd web-react && npm run check && npm run build`
 - [ ] `TRADEPILOT_JWT_SECRET` 显式配置（多实例必须）
@@ -193,14 +193,17 @@ docstring 与 `tests/test_openapi_clients.py`）：
 
 1. 在服务商网关控制台**吊销旧 Key**，留存吊销回执（时间、Key 标识）。
 2. 确认线上/沙箱不再依赖旧 Key；需要时先换发新 Key 并改注入方式（env / Secret Manager）。
-3. 本地执行（默认只检查；没有 `--revoked` 时 `--apply` 会被脚本拒绝）：
+3. 本地执行（默认只检查；没有 `--revoked`/`--owner-decided` 时 `--apply` 会被脚本拒绝）：
 
 ```bash
-python scripts/retire_keys.py --check                 # 看文件名/大小/sha256 前 12 位
-python scripts/retire_keys.py --revoked --apply       # 确认吊销后才真正删除
+python scripts/retire_keys.py                            # 看文件名/大小/sha256 前 12 位
+python scripts/retire_keys.py --revoked --apply          # 确认吊销后才真正删除
+python scripts/retire_keys.py --owner-decided --apply    # 业主评估后决定不吊销（如免费测试 Key）
 ```
 
 4. 审计记录写在 `docs/security/key-retirement.log`，只有哈希前缀与字节数，**不含密钥内容**。
+   两种删除路径在日志里如实区分（`DELETED` vs `DELETED_OWNER_DECIDED`），
+   不允许把"没吊销"写成"已吊销"。
 5. 生产门禁 G4 会在文件仍存在时保持 FAIL，不因为"看起来没人用"而放行。
 
 ---

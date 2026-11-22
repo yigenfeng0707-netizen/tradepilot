@@ -643,7 +643,7 @@ cd D:/电商/tradepilot
 脚本只读不写，token 仅本机内存使用，不外发、不回显（只打印掩码）。
 
 **已就绪的代码侧**：适配器、端点、归属闸门、前端集成页、13 条联调/适配器单测 +
-全量 583 passed + 脚本编排逻辑（fake transport，已入库为 `tests/test_verify_shopify.py`）
+全量 584 passed + 脚本编排逻辑（fake transport，已入库为 `tests/test_verify_shopify.py`）
 均已验证；唯一缺口就是真实 token 这一步。成功后脚本会写脱敏结论到
 `assets/shopify_verify_result.json`，生产门禁据此判定 G5。拿到 token 后若脚本报错，
 把**错误码和排查提示**（不要贴 token）发我，我据此定位。
@@ -658,6 +658,9 @@ G4 无明文凭证、G5 真实平台联调、G6 人工评测实数、G7 定价�
 明文密钥退役顺序（不可颠倒）：先在网关吊销 → 再跑
 `python scripts/retire_keys.py --revoked --apply` 删除本地实体。
 脚本默认只检查，没有 `--revoked` 时连 `--apply` 都拒绝执行；
+若业主评估后决定不吊销（如免费测试 Key、无计费影响），可用
+`--owner-decided --apply` 走"仅删本地实体"路径，审计日志以
+`DELETED_OWNER_DECIDED` 如实区分，不写成"已吊销"。
 日志只记文件名、字节数、sha256 前 12 位，不含密钥内容。
 详细 runbook 见 `docs/ops-readiness.md` §5、§6。
 
