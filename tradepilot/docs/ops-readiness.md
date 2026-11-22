@@ -249,3 +249,21 @@ python scripts/check_release_drift.py --base https://gsym236998-tradepilot-opc.m
 - 裸 `curl`（默认 UA）返回 403「不支持通过 SDK Token 直接访问」是魔搭网关按 UA 判定，
   **不是死链**；评委用浏览器访问正常。对外发布链接有效。
 - 线上一致性属于 G8 佐证，不改变 G4–G7 的红色结论。
+
+## 8. 线上全端点探活：probe_cloudrun.py（2026-11-22）
+
+`scripts/probe_cloudrun.py` 对任意线上实例（默认 Cloud Run，魔搭传 `--base`）按
+五组巡检：基础设施（health/metrics/tools/capabilities/agents/missions/opc）、
+前端页面、业务 Agent（market-insight / smart-selection / content / compliance /
+客服）、鉴权与计量（注册→登录→usage→非管理员 403→登出）、集成与存证。
+`--agent-slow` 才会跑耗时 1–3 分钟的 pipeline 类接口。
+
+```bash
+python scripts/probe_cloudrun.py [BASE_URL] [--agent-slow]
+```
+
+**2026-11-22 实测**：47 项 PASS 45 / FAIL 2，两个 FAIL 同根——`dangdang` 对
+Cloud Run 出口间歇性返回空壳页（`market_insight` 与 `smart_selection` 都受影响），
+同 URL 在本地住宅网络仍正常（详见 docs/gcp-deploy.md §6）。代码侧已加源回退
+（`smart_selection` 首选源失败→市场源表下一源），但若次源样本也不足 3 条，
+系统仍按"不凑数"原则报错——这是数据质量闸门，不是缺陷。

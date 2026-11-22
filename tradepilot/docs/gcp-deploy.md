@@ -161,7 +161,7 @@ Cloud Run 的 `/tmp` 是**实例内存盘**，实例回收即丢失。存证库�
 ## 6. 抓取相关的两个硬约束
 
 1. **robots.txt 已做成闸门**（`app/tools/fetch.py::robots_allowed`）。实测 `walmart.com` 对通用 UA 禁止 `/search`，开启闸门后该源会**如实报错**而不是绕过。要启用美国站真实竞品价，只能走该站官方 API 授权，别在这里开后门。
-2. **出口 IP**：Cloud Run 默认共享出口 IP，目标站可能限流。需要固定出口时用 Serverless VPC Connector + Cloud NAT（有额外费用）。
+2. **出口 IP**：Cloud Run 默认共享出口 IP，目标站可能限流。需要固定出口时用 Serverless VPC Connector + Cloud NAT（有额外费用）。实测：`search.dangdang.com` 对 Cloud Run 出口**间歇性**返回空壳页——同一实例当天上午还能扫到 3 个商品，傍晚起 `_looks_blocked` 判定拦截；本地住宅网络抓同一 URL 仍返回 200 + 44 个真实价格块。这是站点侧按出口 IP 的行为波动，不是代码回归。`smart_selection` 已据此加**源回退**（首选源抓取失败 → 按市场源表换下一个源，全失败才汇总报错），`market_insight` 本来就遍历全部源。
 
 ## 7. 上线验证清单（逐条可执行）
 

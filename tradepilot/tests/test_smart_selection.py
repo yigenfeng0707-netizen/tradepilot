@@ -97,6 +97,36 @@ class TestSmartSelectionGuards(unittest.IsolatedAsyncioTestCase):
             r = await smart_selection.run("宠物用品", marketplace="US")
         self.assertFalse(r["success"])
 
+    async def test_scan_falls_back_to_next_source(self):
+        """首选源被拦（Cloud Run 出口访问 dangdang 偶发空壳页的实测场景）：
+        换到市场源表下一个源继续，不空手报错；结果里数据源标的是实际成功的源。"""
+        bad = ToolOutcome(False, "error", None, "dangdang 返回拦截页或空壳", None)
+        cands = [_cand("dog bed", 82.0, 45.0), _cand("cat litter box", 61.0, 30.0, rank=2)]
+        fx_out = ToolOutcome(True, "done", None, "汇率", {"rate": 7.1, "provenance_id": 77})
+        opp = mock.AsyncMock(side_effect=[bad, _scan_outcome(cands)])
+        with mock.patch.object(smart_selection.opportunity, "run", opp), \
+             mock.patch.object(smart_selection.market_scan, "run",
+                               mock.AsyncMock(return_value=_rescan_outcome())), \
+             mock.patch.object(smart_selection.fx, "run",
+                               mock.AsyncMock(return_value=fx_out)), \
+             mock.patch.object(smart_selection.pricing, "run",
+                               mock.AsyncMock(return_value=_profit())):
+            r = await smart_selection.run("宠物用品", marketplace="US", limit=6)
+        self.assertTrue(r["success"])
+        self.assertEqual(r["data"]["market_opportunity"]["data_source"], "newegg")
+        calls = [c.args[0].get("source") for c in opp.call_args_list]
+        self.assertEqual(calls, ["dangdang", "newegg"])
+
+    async def test_all_sources_fail_reports_each_attempt(self):
+        bad = ToolOutcome(False, "error", None, "dangdang 返回拦截页或空壳", None)
+        with mock.patch.object(smart_selection.opportunity, "run",
+                               mock.AsyncMock(side_effect=[bad, bad])):
+            r = await smart_selection.run("宠物用品", marketplace="US")
+        self.assertFalse(r["success"])
+        self.assertIn("选品扫描失败", r["message"])
+        tried = {t["source"] for t in r["detail"]["sources_tried"]}
+        self.assertEqual(tried, {"dangdang", "newegg"})
+
 
 class TestSmartSelectionHonesty(unittest.IsolatedAsyncioTestCase):
     async def _run(self, candidates=None, profit=None, fx_ok=True, **kw):

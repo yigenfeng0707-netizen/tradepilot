@@ -213,11 +213,15 @@ async def run(category: str, marketplace: str = "US", budget: str = "中",
             "用样本算出的排序会误导调研优先级，故直接报错。",
             {"marketplace": marketplace, "sources_tried": []})
 
-    src = (source or sources[0]).strip().lower()
+    src_preferred = (source or sources[0]).strip().lower()
+    # 首选源抓取失败时按市场源表依次回退：上游站点会按出口 IP 间歇性拦截
+    # （实测 Cloud Run 出口访问 dangdang 偶发空壳页，换源比空手报错更符合
+    # "真实数据优先"口径；所有源都失败才汇总报错，尝试过程写进 detail）。
+    order = [src_preferred] + [s for s in sources if s != src_preferred]
     cat_key = tool_category(category)
 
     scan_input: dict[str, Any] = {
-        "category": cat_key, "source": src, "limit": limit,
+        "category": cat_key, "source": src_preferred, "limit": limit,
     }
     # 用户给了词就用用户的（来源标记会变成 user）；没给则靠 cat_key 取内置假设词。
     # 注意工具层的 keywords 参数是**逗号分隔字符串**，传 list 会被 str() 成
@@ -235,16 +239,27 @@ async def run(category: str, marketplace: str = "US", budget: str = "中",
             {"category": category, "category_key": cat_key,
              "categories_with_builtin": sorted(_HAS_BUILTIN)})
 
-    outcome = await opportunity.run(scan_input)
-    if not outcome.ok:
-        return base.fail(AGENT, f"选品扫描失败：{outcome.summary}",
-                         {"source": src, "detail": outcome.data})
+    outcome, tried = None, []
+    for src in order:
+        scan_input["source"] = src
+        # 传副本：工具/测试侧若记录入参，同一字典被下一轮覆盖会串读
+        outcome = await opportunity.run(dict(scan_input))
+        if outcome.ok:
+            break
+        tried.append({"source": src, "error": outcome.summary})
+    if not outcome or not outcome.ok:
+        return base.fail(
+            AGENT, f"选品扫描失败：{outcome.summary if outcome else '无可用源'}",
+            {"source": order[-1], "sources_tried": tried,
+             "detail": (outcome.data if outcome else None)})
 
     scan = outcome.data or {}
+    src_used = scan_input["source"]  # 回退后实际成功的源（可能不是首选）
     candidates: list[dict[str, Any]] = scan.get("candidates") or []
     if not candidates:
         return base.fail(AGENT, "扫描完成但没有可用候选（样本全部不足）",
-                         {"source": src})
+                         {"source": scan_input["source"],
+                          "sources_tried": tried})
 
     currency = scan.get("currency", "")
     top = candidates[0]
@@ -261,7 +276,7 @@ async def run(category: str, marketplace: str = "US", budget: str = "中",
     item_ids: list[int] = []
     rescan = await market_scan.run({
         "keyword": top.get("keyword_used") or top.get("keyword"),
-        "category": cat_key, "source": src, "limit": limit,
+        "category": cat_key, "source": src_used, "limit": limit,
     })
     if rescan.ok and rescan.data:
         item_ids = [int(i["provenance_id"])
@@ -344,11 +359,11 @@ async def run(category: str, marketplace: str = "US", budget: str = "中",
             "entry_difficulty": _entry_difficulty(profit),
             "batch_size": len(candidates),
             "currency": currency,
-            "data_source": src,
+            "data_source": src_used,
             # 目标市场与实际数据源可能不一致（US 目标但只有国内源可抓）。
             # 不说清楚，用户会以为看到的是美国站竞品价。
             "source_note": (
-                f"目标市场 {marketplace}，实际数据源 {src}（{currency} 计价）。"
+                f"目标市场 {marketplace}，实际数据源 {src_used}（{currency} 计价）。"
                 + ("" if currency == "USD" else
                    "当前抓取的是国内站价格，不是目标站竞品价——"
                    "目标站可抓源在本机/本网络不可达，这是如实降级，不是数据错误。")
@@ -389,6 +404,6 @@ async def run(category: str, marketplace: str = "US", budget: str = "中",
 
     return base.wrap(
         AGENT, {**data, "provenance_ids": provenance_ids}, base.QUALITY_REAL,
-        f"真实扫描 {len(candidates)} 个候选（{src}，{currency}），"
+        f"真实扫描 {len(candidates)} 个候选（{src_used}，{currency}），"
         f"Top1「{top.get('keyword')}」机会分 {total}；"
         + ("利润分析已跑通" if profit else f"利润分析不可用：{profit_reason}"))
