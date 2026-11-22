@@ -172,7 +172,7 @@ docstring 与 `tests/test_openapi_clients.py`）：
 
 ## 4. 上线前总检查
 
-- [ ] 全量测试：`python -m pytest tests -q`（当前 **584** 全绿基线不回退，见
+- [ ] 全量测试：`python -m pytest tests -q`（当前 **587** 全绿基线不回退，见
       production-integration.md 4.17）
 - [ ] 前端：`cd web-react && npm run check && npm run build`
 - [ ] `TRADEPILOT_JWT_SECRET` 显式配置（多实例必须）

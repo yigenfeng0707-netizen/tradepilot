@@ -643,7 +643,7 @@ cd D:/电商/tradepilot
 脚本只读不写，token 仅本机内存使用，不外发、不回显（只打印掩码）。
 
 **已就绪的代码侧**：适配器、端点、归属闸门、前端集成页、13 条联调/适配器单测 +
-全量 584 passed + 脚本编排逻辑（fake transport，已入库为 `tests/test_verify_shopify.py`）
+全量 587 passed + 脚本编排逻辑（fake transport，已入库为 `tests/test_verify_shopify.py`）
 均已验证；唯一缺口就是真实 token 这一步。成功后脚本会写脱敏结论到
 `assets/shopify_verify_result.json`，生产门禁据此判定 G5。拿到 token 后若脚本报错，
 把**错误码和排查提示**（不要贴 token）发我，我据此定位。

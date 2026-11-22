@@ -80,7 +80,7 @@ app/
 web/                      岸基运营大屏（原生 Canvas，/canvas 独立路由）
 web-react/                主前端（React 18 + Vite + TS + Tailwind，/app 路由）
 scripts/                  运维工具（Postgres 迁移导出、部署、截图等）
-tests/                    584 个用例（解析器/闸门/定价/规划器/审计/清洗/关键词/雷达/导出/评测口径/
+tests/                    587 个用例（解析器/闸门/定价/规划器/审计/清洗/关键词/雷达/导出/评测口径/
                           认证/租户隔离/开放平台客户端/店铺授权与调用网关/配额/用量/监控/运营后台/看板趋势/
                           密钥清理红线/Shopify 联调编排/生产就绪门禁）
 ```
@@ -288,7 +288,7 @@ python scripts/human_baseline.py spotcheck --limit 10       # 逐条回访存证
 ## 测试
 
 ```bash
-python -m pytest tests -q      # → 584 passed（全离线：不联网、不污染生产存证库）
+python -m pytest tests -q      # → 587 passed（全离线：不联网、不污染生产存证库）
 python scripts/production_gate.py check   # 8 项生产就绪门禁；未验证项如实 FAIL，不估算
 ```
 
