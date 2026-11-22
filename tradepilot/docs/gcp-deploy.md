@@ -276,3 +276,34 @@ gcloud 启动器内部传给 python 的 `/c/.../gcloud.py` 也被禁了转换，
 其余路径照常转换）。改完用 `gcloud run services describe` 回读 env 值确认。
 
 **成本记录：** `--min-instances 0` 下演示期费用 ≈ $0（账单账户消费 credits）。
+
+## 9. 第一方 Gemini 可用性实测（2026-11-22）：账单账户政策封锁，勿再重试
+
+想在 Cloud Run 上用 GCP credits 直调 Gemini，实测 Vertex 与 generativelanguage
+两个官方调用面**全部被拒**，且已排除一切配置性因素（API 均已启用、SA/Key 身份
+正确、且在 Cloud Build 即 Google 内网复测排除本地方网络因素）：
+
+| 调用面 | 测试矩阵 | 结果 |
+|---|---|---|
+| Vertex v1 generateContent | 4 模型 × 4 区域（us-central1/asia-southeast1/global/asia-east1） | 404 "project does not have access" |
+| Vertex rawPredict + anthropic body | 同模型 | 同 404 |
+| Cloud Build 复测（项目 SA 身份） | 重跑上两行 | 同样拒绝 |
+| Vertex v1beta1 agnostic | generateContent | 400 RESOURCE_PROJECT_INVALID |
+| generativelanguage 原生/列模型 | 项目已有两把 GL 专用 key（`tradepilot-gemini`/`-2`） | 全部 403 ACCESS_DENIED |
+| GL OpenAI 兼容面 | Bearer key | "Please pass a valid API key" |
+| 换账单账户 | `billing accounts list` | 仅 1 个（01F639-41F87D-A7EE48），无可换 |
+
+**结论**：封锁在**账单账户（国别政策）**层面——credits 在本账户上买不到第一方
+Gemini，API enablement 正常也绕不过。**用户决策（2026-11-22）：维持书生 Atria
+（双入口），Gemini 线归档，不再重试。**
+
+备查：
+
+- Secret `gemini-api-key`（v1）存有项目已有 GL key 的 keyString；日后若换非受限
+  账单账户，接 GL 只差换 key + `LLM_BASE_URL`。
+- 聚合商 anthropic 格式面（`api11.xhub.chat` / `api.openai-next.com` 均有
+  gemini-3.8-flash）不消耗 GCP 计费，key 备份见 Desktop\TokenAPI。
+- 工具坑：`gcloud services api-keys create --format="value(name)"` 不生效——
+  create 返回 operation，keyString 会整段回显进终端；key 一旦进终端输出视为已
+  暴露，删 key 重发。取真实 key 名用 `gcloud services api-keys list`；
+  `--api-target` 必须写 `service=<服务名>` 形式。
