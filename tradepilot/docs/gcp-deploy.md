@@ -244,3 +244,26 @@ gcloud run services update-traffic $SERVICE --region $REGION --to-revisions <REV
 本仓库旧版固定监听 7860。镜像已改为读取 `PORT`（默认 7860），
 在魔搭部署时无需任何显式设置（默认端口即魔搭健康检查端口 7860）；
 Cloud Run 则由运行时注入 `PORT`，同样无需配置。
+
+## 8. 实测踩坑补充（2026-11-22 部署实录）
+
+**① Secret 值带尾随换行 → httpx 非法 header 静默降级。** 从 `.llm_key` 整文件上传
+Secret 会带入 `\r\n`，httpx 抛 `LocalProtocolError: Illegal header value`，整个
+网关层静默降级（客服全变模板）。教训：`config.py` 对 env 值也 `.strip()`;
+建 Secret 用 `printf '%s'` 去换行，不要整文件上传。
+
+**② PowerShell 脚本的中文路径编码陷阱。** UTF-8 无 BOM 的 .ps1 被
+PowerShell 5.1 按 GBK 读取，`Set-Location "D:\电商\tradepilot"` 静默失败后脚本
+继续执行——`gcloud run deploy --source .` 从**工作区根**上传，把参赛材料、BP、
+报告全传进 Cloud Storage（无 Dockerfile → buildpacks → 缺 main.py 构建失败）。
+修法：路径用正斜杠（`D:/电商/tradepilot`）+ `Test-Path Dockerfile` 前置守卫，
+或 `powershell -EncodedCommand`（UTF-16LE base64，无编码歧义）。
+误传的源包需从 `gs://run-sources-...` 删除（.gitignore 回退兜住了 .llm_key，
+但参赛材料不该留在云上）。
+
+**③ Cloud Run → 国内网关间歇 DNS 失败 + 书生偶发 502。** 实测
+`ConnectError: name resolution` 与 502 交替出现，命中率约三成。`llm.py` 已加
+3 次尝试 + 2 秒退避（5xx 与连接类瞬时故障同等待遇），实测 502 重试后成功。
+魔搭（国内）无此问题——Cloud Run 作为海外入口，演示主入口仍建议用魔搭。
+
+**成本记录：** `--min-instances 0` 下演示期费用 ≈ $0（账单账户消费 credits）。
