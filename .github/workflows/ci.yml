@@ -8,6 +8,7 @@
 name: ci
 
 on:
+  workflow_dispatch:   # 纯资产类提交（不碰 tradepilot/**）不会自动触发；门禁复核需要当前 sha 有真实 CI 时手动跑
   push:
     branches: [master, main]
     paths:
