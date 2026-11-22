@@ -10,6 +10,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 
@@ -58,7 +59,10 @@ async def chat(system: str, user: str, max_tokens: int = 800) -> str | None:
     """
     if not available():
         return None
-    for attempt in (1, 2):
+    last_exc: Exception | None = None
+    for attempt in (1, 2, 3):
+        if attempt > 1:
+            await asyncio.sleep(2)   # 瞬时 502 / DNS 抖动通常秒级恢复
         try:
             async with httpx.AsyncClient(timeout=150) as client:
                 resp = await client.post(
@@ -93,13 +97,23 @@ async def chat(system: str, user: str, max_tokens: int = 800) -> str | None:
                       f"content 长度={len(content)}，reasoning 长度={len(reasoning)} → 降级", flush=True)
                 return None
         except httpx.HTTPStatusError as exc:
-            # 网关自身 5xx（实测书生会偶发 502）属于瞬时故障：重试一次能把绝大多数
+            # 网关自身 5xx（实测书生会偶发 502）属于瞬时故障：重试能把绝大多数
             # "线上莫名变模板"消灭在调用层；只重 5xx，4xx 是配置问题重试无益
-            if attempt == 1 and exc.response.status_code >= 500:
-                print(f"[llm] 网关 {exc.response.status_code}，重试一次", flush=True)
+            if attempt < 3 and exc.response.status_code >= 500:
+                print(f"[llm] 网关 {exc.response.status_code}，第 {attempt}/3 次尝试，重试", flush=True)
+                last_exc = exc
                 continue
             print(f"[llm] 网关调用失败降级: {type(exc).__name__}: "
                   f"{exc.response.status_code} {exc.response.text[:120]}", flush=True)
+            return None
+        except (httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout) as exc:
+            # 连接类瞬时故障：Cloud Run 实例偶发 DNS 解析失败（实测 name resolution
+            # 命中网址失败），秒级自愈——与 5xx 同等待遇重试
+            if attempt < 3:
+                print(f"[llm] 连接瞬时故障 {type(exc).__name__}，第 {attempt}/3 次尝试，重试", flush=True)
+                last_exc = exc
+                continue
+            print(f"[llm] 连接失败降级: {type(exc).__name__}: {exc}", flush=True)
             return None
         except Exception as exc:  # noqa: BLE001 — 网关故障一律降级，不让作品失败
             # 失败原因必须进运行日志（FC 控制台/魔搭 run logs 可见）：
