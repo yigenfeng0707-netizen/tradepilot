@@ -54,10 +54,12 @@ class Config:
     # LLM 网关（默认书生 InternAI 聚合网关，OpenAI 兼容，多模型聚合。
     # Key 来源：环境变量 LLM_API_KEY > 本地 .llm_key 文件；均不落代码库。
     # 无 key 时编排器走规则规划，作品依然全流程可跑）
+    # strip 必须有：Secret Manager / .env 类注入常带尾随换行（实测带 \r\n 的 key
+    # 让 httpx 抛 LocalProtocolError: Illegal header value，整个网关静默降级）
     llm_base_url: str = field(default_factory=lambda: os.environ.get(
-        "LLM_BASE_URL", "https://discovery-api.intern-ai.org.cn/v1"))
-    llm_api_key: str = field(default_factory=lambda: os.environ.get(
-        "LLM_API_KEY", "") or _read_local_key())
+        "LLM_BASE_URL", "https://discovery-api.intern-ai.org.cn/v1").strip())
+    llm_api_key: str = field(default_factory=lambda: (os.environ.get(
+        "LLM_API_KEY", "") or _read_local_key()).strip())
     llm_model: str = field(default_factory=lambda: os.environ.get(
         "LLM_MODEL", "Atria-Dawn"))
     llm_timeout_s: int = field(default_factory=lambda: int(os.environ.get(
