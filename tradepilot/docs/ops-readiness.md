@@ -267,3 +267,16 @@ Cloud Run 出口间歇性返回空壳页（`market_insight` 与 `smart_selection
 同 URL 在本地住宅网络仍正常（详见 docs/gcp-deploy.md §6）。代码侧已加源回退
 （`smart_selection` 首选源失败→市场源表下一源），但若次源样本也不足 3 条，
 系统仍按"不凑数"原则报错——这是数据质量闸门，不是缺陷。
+
+### 8.1 魔搭网关拦 Bearer——前端改用 X-Auth-Token（2026-11-22 实测）
+
+魔搭创空间自定义域（`*.ms.show`）的网关会拦截**所有 Bearer 方案的
+Authorization 头**（魔搭 SDK token 走 Bearer，网关无法与应用自家 JWT 区分），
+返回 403「当前接口不支持通过SDK Token直接访问」。实测网关只拦 Bearer：
+`Authorization: Basic`、`X-Auth-Token`、无认证头一律放行到应用（401 由应用返回），
+因此魔搭入口上登录后所有带令牌的接口（/auth/me、/me/usage、店铺集成……）都会 403。
+
+- 后端 `auth.current_user` 两种头都认（`Authorization: Bearer` 保留给外部 API
+  客户端与本地部署）；前端 `authHeader()` 一律发 `X-Auth-Token`。
+- 网关指引的 `studio-*.api-inference.modelscope.net` 地址要的是魔搭账号 token，
+  不是应用认证，换那个入口不能解决问题。

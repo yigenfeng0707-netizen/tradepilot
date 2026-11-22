@@ -325,15 +325,24 @@ def session_pair(user_id: str, tenant_id: str) -> dict[str, Any]:
             "expires_in": ACCESS_TOKEN_TTL_S}
 
 
-def current_user(authorization: str | None) -> dict[str, Any] | None:
-    """从 Authorization: Bearer <token> 解析当前用户。
+def current_user(authorization: str | None,
+                 x_auth_token: str | None = None) -> dict[str, Any] | None:
+    """从 Authorization: Bearer <token> 或 X-Auth-Token: <token> 解析当前用户。
+
+    两个入口都认：魔搭创空间网关会拦截**所有** Bearer 方案的 Authorization 头
+    （它的 SDK token 走 Bearer，网关分不清应用自家 JWT，实测只有 Bearer 被拦，
+    Basic/自定义头一律放行）。前端在魔搭域下用 X-Auth-Token 带令牌；
+    Authorization Bearer 保留给外部 API 客户端与本地部署。
 
     返回 None 表示未认证——由调用方决定是 401 还是匿名降级
     （M3 过渡期业务接口先匿名可用，身份层先立住）。
     """
-    if not authorization or not authorization.lower().startswith("bearer "):
-        return None
-    payload = decode_access_token(authorization[7:].strip())
+    token = (x_auth_token or "").strip()
+    if not token:
+        if not authorization or not authorization.lower().startswith("bearer "):
+            return None
+        token = authorization[7:].strip()
+    payload = decode_access_token(token)
     if payload is None:
         return None
     return user_info(str(payload.get("sub") or ""))

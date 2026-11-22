@@ -151,11 +151,23 @@ class TestTokens(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(user["user_id"], self.user_id)
         self.assertEqual(user["company"], "")
 
+    def test_current_user_from_x_auth_token(self):
+        """魔搭网关会拦截所有 Bearer 方案的 Authorization 头（实测只有 Bearer
+        被拦，Basic/自定义头放行），前端改用 X-Auth-Token——后端必须两种都认。"""
+        token = auth.issue_access_token(self.user_id, self.tenant_id)
+        user = auth.current_user(None, x_auth_token=token)
+        self.assertEqual(user["user_id"], self.user_id)
+        # 两个头同时给时任意一个有效即可
+        user2 = auth.current_user("Bearer not-a-token", x_auth_token=token)
+        self.assertEqual(user2["user_id"], self.user_id)
+
     def test_current_user_rejects_bad_header(self):
         token = auth.issue_access_token(self.user_id, self.tenant_id)
         self.assertIsNone(auth.current_user(None))
         self.assertIsNone(auth.current_user("Basic abc"))
         self.assertIsNone(auth.current_user("Bearer not-a-token"))
+        self.assertIsNone(auth.current_user(None, x_auth_token="not-a-token"))
+        self.assertIsNone(auth.current_user(None, x_auth_token="  "))
 
 
 class TestLoginRateLimit(unittest.IsolatedAsyncioTestCase):

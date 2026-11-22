@@ -229,7 +229,10 @@ function authHeader(url: string): Record<string, string> {
   // 于是刷新页面后永远 401。登录/注册带了过期令牌也无害，不值得为它开特例。
   const token = getAccessToken();
   if (!token) return {};
-  return { Authorization: `Bearer ${token}` };
+  // 用 X-Auth-Token 而非 Authorization: Bearer：魔搭创空间网关会拦截所有
+  // Bearer 方案的 Authorization 头（它的 SDK token 走 Bearer，无法与应用
+  // JWT 区分），后端两种头都认，自定义头在所有部署入口通用。
+  return { 'X-Auth-Token': token };
 }
 
 /** 静默续期：用 refresh 换新的一对。失败就清空会话（旧 refresh 已无效）。 */

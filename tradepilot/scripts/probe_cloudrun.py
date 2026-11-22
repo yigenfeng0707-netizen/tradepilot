@@ -112,9 +112,11 @@ def main() -> int:
                  {"category": "pet", "keyword": "dog bed", "limit": 6}, timeout=180)
         if r:
             d = r.json()
-            items = (d.get("data") or {}).get("items") or d.get("items") or []
+            data = d.get("data") or {}
+            items = data.get("product_recommendations") or data.get("items") or []
             record("smart-selection 选品", d.get("success") is True and len(items) > 0,
-                   f"success={d.get('success')} 商品数={len(items)}")
+                   f"success={d.get('success')} 商品数={len(items)}"
+                   + ("" if d.get("success") else "｜" + str(d.get("message"))[:80]))
 
         r = call(c, "content-options", "GET", "/api/agents/content-options")
         if r:
@@ -169,7 +171,7 @@ def main() -> int:
             auth_ok = bool(token)
             record("register 发 token", auth_ok, f"token={'有' if token else '无'}")
             if token:
-                auth = {"Authorization": "Bearer " + token, **HDR}
+                auth = {"X-Auth-Token": token, **HDR}
                 r2 = c.get("/api/auth/me", headers=auth, timeout=30)
                 record("auth/me", r2.status_code == 200, f"HTTP {r2.status_code}")
                 r3 = c.get("/api/me/usage", headers=auth, timeout=30)
@@ -199,16 +201,16 @@ def main() -> int:
         print("\n五、集成与存证")
         # 前面的 r 变量已被复用，这里直接用带鉴权的请求
         ra = c.get("/api/integrations/shopify/auth-url",
-                   headers={"Authorization": "Bearer " + token, **HDR}, timeout=30)
+                   headers={"X-Auth-Token": token, **HDR}, timeout=30)
         # 200=有授权链接；409=该平台设计上不走授权链接或凭证未配置（detail 有清晰指引）
         record("integrations auth-url", ra.status_code in (200, 409),
                f"HTTP {ra.status_code}｜{ra.json().get('detail', '返回授权链接')[:60]}")
         rs = c.get("/api/integrations/shopify/shops",
-                   headers={"Authorization": "Bearer " + token, **HDR}, timeout=30)
+                   headers={"X-Auth-Token": token, **HDR}, timeout=30)
         record("integrations shops", rs.status_code == 200,
                f"HTTP {rs.status_code} shops={len(rs.json().get('shops', []))}")
         r = c.post("/api/integrations/shopify/connect", json={},
-                   headers={"Authorization": "Bearer " + token, **HDR}, timeout=30)
+                   headers={"X-Auth-Token": token, **HDR}, timeout=30)
         record("shopify connect 空体校验", r.status_code == 422,
                f"HTTP {r.status_code} 字段校验拦截（符合预期）")
 

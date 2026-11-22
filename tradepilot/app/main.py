@@ -456,7 +456,8 @@ async def auth_logout(body: AuthRefreshIn) -> dict[str, Any]:
 
 @app.get("/api/auth/me")
 async def auth_me(request: Request) -> dict[str, Any]:
-    user = auth.current_user(request.headers.get("authorization"))
+    user = auth.current_user(request.headers.get("authorization"),
+                                 request.headers.get("x-auth-token"))
     if user is None:
         raise HTTPException(status_code=401, detail="未认证或令牌已过期")
     return user
@@ -491,7 +492,8 @@ async def agents_pipeline_stream(body: PipelineIn) -> StreamingResponse:
 async def me_usage(request: Request) -> dict[str, Any]:
     """当前租户的用量自查（计费闭环的用户侧）：配额余额 + 自己的 token
     明细。登录可见——匿名没有账可查。"""
-    user = auth.current_user(request.headers.get("authorization"))
+    user = auth.current_user(request.headers.get("authorization"),
+                                 request.headers.get("x-auth-token"))
     if user is None:
         raise HTTPException(status_code=401, detail="未认证或令牌已过期")
     tid = str(user["tenant_id"])
@@ -541,7 +543,8 @@ _SHOP_CALL_METHODS = {"GET", "POST"}
 def _require_user(request: Request) -> dict[str, Any]:
     """店铺授权是租户动作：授权后的店铺 API 调用消耗该租户的配额。
     未登录 401。"""
-    user = auth.current_user(request.headers.get("authorization"))
+    user = auth.current_user(request.headers.get("authorization"),
+                                 request.headers.get("x-auth-token"))
     if user is None:
         raise HTTPException(status_code=401, detail="未认证或令牌已过期")
     return user
@@ -765,7 +768,8 @@ def _tenant_of(request: Request) -> str | None:
     但**一旦带有效令牌，就只看得见自己租户的任务存档**——
     隔离必须是"登录后收紧"，不是"登录后照旧全局可见"。
     """
-    user = auth.current_user(request.headers.get("authorization"))
+    user = auth.current_user(request.headers.get("authorization"),
+                                 request.headers.get("x-auth-token"))
     return str(user["tenant_id"]) if user else None
 
 
