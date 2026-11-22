@@ -266,4 +266,13 @@ PowerShell 5.1 按 GBK 读取，`Set-Location "D:\电商\tradepilot"` 静默失�
 3 次尝试 + 2 秒退避（5xx 与连接类瞬时故障同等待遇），实测 502 重试后成功。
 魔搭（国内）无此问题——Cloud Run 作为海外入口，演示主入口仍建议用魔搭。
 
+**④ Git Bash 给 gcloud 传含绝对路径的 env 值，MSYS 悄悄改写。**
+`--set-env-vars "TRADEPILOT_DATA_DIR=/tmp/tradepilot"` 在 Git Bash 里 `/tmp`
+会被 MSYS 路径转换改写成 `C:/Users/<user>/AppData/Local/Temp/tradepilot`
+（实测连续两个 revision 中招，值一模一样）。裸加 `MSYS_NO_PATHCONV=1` 更糟：
+gcloud 启动器内部传给 python 的 `/c/.../gcloud.py` 也被禁了转换，
+报 `can't open file 'D:\c\Users\...\gcloud.py'`。精确豁免写法：
+`MSYS2_ARG_CONV_EXCL='TRADEPILOT_DATA_DIR'`（只跳过含该变量的参数，
+其余路径照常转换）。改完用 `gcloud run services describe` 回读 env 值确认。
+
 **成本记录：** `--min-instances 0` 下演示期费用 ≈ $0（账单账户消费 credits）。
