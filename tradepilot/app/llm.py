@@ -58,44 +58,54 @@ async def chat(system: str, user: str, max_tokens: int = 800) -> str | None:
     """
     if not available():
         return None
-    try:
-        async with httpx.AsyncClient(timeout=150) as client:
-            resp = await client.post(
-                f"{CONFIG.llm_base_url}/chat/completions",
-                headers={"Authorization": f"Bearer {CONFIG.llm_api_key}"},
-                json={
-                    "model": CONFIG.llm_model,
-                    "messages": [{"role": "system", "content": system},
-                                 {"role": "user", "content": user}],
-                    "max_tokens": max_tokens,
-                    "temperature": 0.4,
-                },
-            )
-            resp.raise_for_status()
-            body = json.loads(resp.text)
-            msg = body["choices"][0]["message"]
-            try:
-                p_tok, c_tok = usage.extract_usage(body)
-                usage.record(current_tenant_id.get(), p_tok, c_tok)
-            except Exception:  # noqa: BLE001  记账失败不影响业务结果
-                pass
-            content = str(msg.get("content") or "").strip()
-            if content:
-                return content
-            reasoning = str(msg.get("reasoning_content") or "")
-            if reasoning and "{" in reasoning:
-                return reasoning[reasoning.rfind("{"):]  # 尾段起点，交由调用方 _extract_json 兜底
-            # 200 但无可用正文（多为推理模型把预算花在 reasoning 上）：降级本身没错，
-            # 但原因必须可见，否则线上只会"莫名变模板"，无从排查
-            print(f"[llm] 网关 200 但无可用正文：finish_reason="
-                  f"{body.get('choices', [{}])[0].get('finish_reason')}，"
-                  f"content 长度={len(content)}，reasoning 长度={len(reasoning)} → 降级", flush=True)
+    for attempt in (1, 2):
+        try:
+            async with httpx.AsyncClient(timeout=150) as client:
+                resp = await client.post(
+                    f"{CONFIG.llm_base_url}/chat/completions",
+                    headers={"Authorization": f"Bearer {CONFIG.llm_api_key}"},
+                    json={
+                        "model": CONFIG.llm_model,
+                        "messages": [{"role": "system", "content": system},
+                                     {"role": "user", "content": user}],
+                        "max_tokens": max_tokens,
+                        "temperature": 0.4,
+                    },
+                )
+                resp.raise_for_status()
+                body = json.loads(resp.text)
+                msg = body["choices"][0]["message"]
+                try:
+                    p_tok, c_tok = usage.extract_usage(body)
+                    usage.record(current_tenant_id.get(), p_tok, c_tok)
+                except Exception:  # noqa: BLE001  记账失败不影响业务结果
+                    pass
+                content = str(msg.get("content") or "").strip()
+                if content:
+                    return content
+                reasoning = str(msg.get("reasoning_content") or "")
+                if reasoning and "{" in reasoning:
+                    return reasoning[reasoning.rfind("{"):]  # 尾段起点，交由调用方 _extract_json 兜底
+                # 200 但无可用正文（多为推理模型把预算花在 reasoning 上）：降级本身没错，
+                # 但原因必须可见，否则线上只会"莫名变模板"，无从排查
+                print(f"[llm] 网关 200 但无可用正文：finish_reason="
+                      f"{body.get('choices', [{}])[0].get('finish_reason')}，"
+                      f"content 长度={len(content)}，reasoning 长度={len(reasoning)} → 降级", flush=True)
+                return None
+        except httpx.HTTPStatusError as exc:
+            # 网关自身 5xx（实测书生会偶发 502）属于瞬时故障：重试一次能把绝大多数
+            # "线上莫名变模板"消灭在调用层；只重 5xx，4xx 是配置问题重试无益
+            if attempt == 1 and exc.response.status_code >= 500:
+                print(f"[llm] 网关 {exc.response.status_code}，重试一次", flush=True)
+                continue
+            print(f"[llm] 网关调用失败降级: {type(exc).__name__}: "
+                  f"{exc.response.status_code} {exc.response.text[:120]}", flush=True)
             return None
-    except Exception as exc:  # noqa: BLE001 — 网关故障一律降级，不让作品失败
-        # 失败原因必须进运行日志（FC 控制台/魔搭 run logs 可见）：
-        # 静默吞掉等于把"线上莫名变模板"变成永远查不出的问题
-        print(f"[llm] 网关调用失败降级: {type(exc).__name__}: {exc}", flush=True)
-        return None
+        except Exception as exc:  # noqa: BLE001 — 网关故障一律降级，不让作品失败
+            # 失败原因必须进运行日志（FC 控制台/魔搭 run logs 可见）：
+            # 静默吞掉等于把"线上莫名变模板"变成永远查不出的问题
+            print(f"[llm] 网关调用失败降级: {type(exc).__name__}: {exc}", flush=True)
+            return None
 
 
 async def plan_next(goal: str, done_steps: list[str], tools: list[dict[str, str]]) -> dict[str, Any] | None:
