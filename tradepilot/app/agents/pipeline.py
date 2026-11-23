@@ -44,6 +44,9 @@ STEP_LABELS = {
     "compliance": "合规查询",
 }
 
+# 中文步骤标签 → 英文步骤键（归档 autonomy 记账用，保持与 STEP_LABELS 同源）
+_LABEL_TO_KEY = {label: key for key, label in STEP_LABELS.items()}
+
 
 def _step_event(step: str, status: str, **extra: Any) -> dict[str, Any]:
     return {"event": "step", "step": step, "label": STEP_LABELS[step],
@@ -220,7 +223,14 @@ async def run_steps(category: str, marketplace: str = "US", budget: str = "中",
                          "total_steps": len(STEP_LABELS),
                          "failed_steps": [e.split("：")[0] for e in errors]},
              "autonomy": {"steps_completed": completed,
-                          "steps_failed": [e.split("：")[0] for e in errors]},
+                          # errors 条目前缀是中文步骤标签（如"合规查询：…"），
+                          # 机器消费侧（opc_brief 映射、missions 摘要）要的是与
+                          # STEP_LABELS 一致的英文键——此前直接 split 存中文，
+                          # 降级映射对不上，失败步被误标"未执行"。
+                          "steps_failed": [
+                              _LABEL_TO_KEY.get(e.split("：", 1)[0],
+                                                e.split("：", 1)[0])
+                              for e in errors]},
              "provenance": provenance.stats()},
             tenant_id=current_tenant_id.get())
     except Exception as exc:  # noqa: BLE001

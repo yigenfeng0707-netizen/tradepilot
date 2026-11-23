@@ -216,3 +216,33 @@ class TestAnonymousRateLimit(unittest.IsolatedAsyncioTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestArchivedFailureKeySpace(unittest.IsolatedAsyncioTestCase):
+    """归档的 autonomy.steps_failed 必须用英文步骤键（与 opc_brief 的
+    映射、STEP_LABELS 同源）。此前 errors 前缀是中文标签，分裂键空间导致
+    失败步在 OPC 简报里被误标"未执行"——演示降级叙事的关键一致性。"""
+
+    async def test_failed_step_key_matches_step_labels(self):
+        async def fail_compliance(*args, **kwargs):
+            return {"success": False, "agent": "合规Agent", "data": None,
+                    "data_quality": None, "message": "步骤超时：墙钟预算用尽"}
+
+        with (mock.patch.object(mi, "run", mock.AsyncMock(
+                return_value=_ok("市场洞察Agent", {}))),
+              mock.patch.object(ss, "run", mock.AsyncMock(
+                return_value=_ok("智能选品Agent",
+                                 {"product_recommendations": [{"product": "x"}]}))),
+              mock.patch.object(cg, "run", mock.AsyncMock(
+                return_value=_ok("内容生成Agent", {}, "generated"))),
+              mock.patch.object(cp, "run", side_effect=fail_compliance)):
+            events = await _collect(category="pet", product_name="x")
+        done = next(e for e in events if e.get("event") == "done")
+        report = store.get_mission(done["mission_id"], tenant_id=None)
+        failed = report["autonomy"]["steps_failed"]
+        self.assertEqual(failed, ["compliance"], f"应为英文键，实际 {failed}")
+        # 机器消费侧（opc_brief 映射）能据此判定为"降级"而非"未执行"
+        from app import opc_brief
+        brief = opc_brief.build_opc_brief(report)
+        by_step = {c["step"]: c for c in brief["value_chain"]}
+        self.assertEqual(by_step["compliance_check"]["status"], "降级")
