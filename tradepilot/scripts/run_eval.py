@@ -183,7 +183,7 @@ async def main() -> None:
             "agent_total_wall_s": round(time.time() - t0, 1),
             "honesty_notes": [
                 "agent 侧指标全部自动实测，可复算",
-                "人工基线待真人按 docs/eval/人工SOP.md 计时后填入 human_baseline（禁估算）",
+                "人工基线需真人按 docs/eval/人工SOP.md 计时后填入 human_baseline（禁估算）；未填为 null，由 scripts/human_baseline.py 录入",
                 "llm_planned_rate = LLM 做出选择的步数占比；与规则序一致不构成自主证据，"
                 "llm_override_total 才是（模型选择与规则评分不一致并被采纳的次数）",
                 "walmart 源经 robots.txt 校验对通用 UA 禁止 /search，故 band_source 仍为 "
