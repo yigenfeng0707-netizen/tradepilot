@@ -19,6 +19,7 @@ from typing import Any, AsyncIterator
 
 from . import llm, planner, provenance, store
 from .config import CONFIG
+from .request_context import current_tenant_id
 from .tools import competitor as market_scan
 from .tools import (compliance, executor, fx, keywords, listing, listing_audit,
                     opportunity, pricing)
@@ -110,7 +111,7 @@ async def run_mission(
     started = time.time()
     emit_fn = emit or (lambda event: None)
 
-    mission_id = f"mission-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}"
+    mission_id = store.new_mission_id()
     plan_engine = "llm" if llm.available() else "rules"
     header = {
         "mission_id": mission_id, "goal": goal, "plan_engine": plan_engine,
@@ -209,9 +210,12 @@ async def run_mission(
     # 归档属于编排层，不属于 HTTP 层：评测脚本、命令行、定时任务跑出来的任务，
     # 同样必须留下证据链。此前只有 WebSocket 处理器会存档，非界面调用静默不留档。
     # 存档失败不拖垮任务（报告已在内存，界面照样出结果），但失败原因必须显式记账。
+    # 归档归属走 request_context（中间件设置一次，编排层/WS/脚本同源）：
+    # 登录租户跑的任务写 tenant_id，演示模式为 None。
     try:
         report["provenance"] = provenance.stats()
-        report["archive_path"] = store.save_mission(report)
+        report["archive_path"] = store.save_mission(
+            report, tenant_id=current_tenant_id.get())
     except Exception as exc:  # noqa: BLE001
         report["archive_error"] = f"{type(exc).__name__}: {exc}"
     yield {"type": "mission_done", "report": report}

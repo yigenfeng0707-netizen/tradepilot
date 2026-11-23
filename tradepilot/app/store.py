@@ -19,11 +19,22 @@ from __future__ import annotations
 import json
 import os
 import re
+import secrets
+from datetime import datetime, timezone
 from typing import Any
 
 from .config import CONFIG
 
-_SAFE_ID = re.compile(r"^mission-[0-9]{8}-[0-9]{6}$")
+# 历史格式 mission-YYYYMMDD-HHMMSS 仍然兼容；新落档必带 6 位随机后缀——
+# 精度到秒时，同一秒并发起的两个任务会生成同名 id，后写者原子覆盖前者，
+# 证据链凭空少一条（评测脚本批量打、现场演示连点两次都会触发）。
+_SAFE_ID = re.compile(r"^mission-[0-9]{8}-[0-9]{6}(-[0-9a-f]{6})?$")
+
+
+def new_mission_id() -> str:
+    """生成任务 id：秒级时间戳 + 随机后缀防同秒覆盖。"""
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    return f"mission-{stamp}-{secrets.token_hex(3)}"
 
 
 def save_mission(report: dict[str, Any], tenant_id: str | None = None) -> str:

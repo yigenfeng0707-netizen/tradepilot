@@ -22,6 +22,10 @@ interface AppState {
   logout: () => void;
 }
 
+// 品类名单的**单一前端来源**：与后端 /api/capabilities 的
+// categories_with_builtin_keywords 名单核对一致（Home.tsx 的能力徽章按它匹配）。
+// 增删品类必须两边核对：后端 sample_market.CATEGORY_KEYWORDS + 这里 +
+// Home.tsx categoryData（后者只多带图标/描述，name 必须与本名单一致）。
 export const categories = [
   '宠物用品',
   '家居用品',

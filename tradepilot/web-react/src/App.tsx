@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from '@/components/Layout';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import Home from '@/pages/Home';
 import MarketInsight from '@/pages/MarketInsight';
 import SmartSelection from '@/pages/SmartSelection';
@@ -21,24 +22,26 @@ export default function App() {
   const basename = window.location.pathname.startsWith('/app') ? '/app' : '/';
 
   return (
-    <Router basename={basename}>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route path="/" element={<Home />} />
-          <Route path="/market-insight" element={<MarketInsight />} />
-          <Route path="/smart-selection" element={<SmartSelection />} />
-          <Route path="/content-generation" element={<ContentGeneration />} />
-          <Route path="/compliance" element={<Compliance />} />
-          <Route path="/customer-service" element={<CustomerService />} />
-          <Route path="/integrations" element={<Integrations />} />
-          <Route path="/integrations/callback" element={<IntegrationCallback />} />
-          <Route path="/account" element={<Account />} />
-          <Route path="/pipeline" element={<Pipeline />} />
-          <Route path="/pricing" element={<Pricing />} />
-          <Route path="/admin" element={<Admin />} />
-          <Route path="/login" element={<Login />} />
-        </Route>
-      </Routes>
-    </Router>
+    <ErrorBoundary>
+      <Router basename={basename}>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route path="/" element={<ErrorBoundary><Home /></ErrorBoundary>} />
+            <Route path="/market-insight" element={<ErrorBoundary><MarketInsight /></ErrorBoundary>} />
+            <Route path="/smart-selection" element={<ErrorBoundary><SmartSelection /></ErrorBoundary>} />
+            <Route path="/content-generation" element={<ErrorBoundary><ContentGeneration /></ErrorBoundary>} />
+            <Route path="/compliance" element={<ErrorBoundary><Compliance /></ErrorBoundary>} />
+            <Route path="/customer-service" element={<ErrorBoundary><CustomerService /></ErrorBoundary>} />
+            <Route path="/integrations" element={<ErrorBoundary><Integrations /></ErrorBoundary>} />
+            <Route path="/integrations/callback" element={<ErrorBoundary><IntegrationCallback /></ErrorBoundary>} />
+            <Route path="/account" element={<ErrorBoundary><Account /></ErrorBoundary>} />
+            <Route path="/pipeline" element={<ErrorBoundary><Pipeline /></ErrorBoundary>} />
+            <Route path="/pricing" element={<ErrorBoundary><Pricing /></ErrorBoundary>} />
+            <Route path="/admin" element={<ErrorBoundary><Admin /></ErrorBoundary>} />
+            <Route path="/login" element={<ErrorBoundary><Login /></ErrorBoundary>} />
+          </Route>
+        </Routes>
+      </Router>
+    </ErrorBoundary>
   );
 }

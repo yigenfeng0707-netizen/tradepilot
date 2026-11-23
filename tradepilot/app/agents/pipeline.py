@@ -25,9 +25,14 @@
 """
 from __future__ import annotations
 
+import asyncio
 import time
+from datetime import datetime, timezone
 from typing import Any, AsyncIterator
 
+from .. import provenance, store
+from ..config import CONFIG
+from ..request_context import current_tenant_id
 from . import base, compliance, content_generation, market_insight, smart_selection
 
 AGENT = "全链路工作流"
@@ -45,15 +50,44 @@ def _step_event(step: str, status: str, **extra: Any) -> dict[str, Any]:
             "status": status, **extra}
 
 
+async def _run_step(coro: Any, label: str, timeout_s: float) -> Any:
+    """单步墙钟预算：超时即放弃本步（诚实 fail），绝不挂住整条链。
+
+    为什么要这层：一次合规步内会串行抓多个官方源，每个源各自有 fetch 超时，
+    但相加无上限——弱网下单个慢源就能让大屏卡在一个节点十几分钟，
+    路演里这就是"演示事故"。预算超时后标注 `step_timeout`，
+    链路继续跑其余步骤（与"单步失败不拖垮整条链"的既有规矩一致）。
+
+    已知的取舍：被取消的抓取如果已进入浏览器线程池，该线程仍会跑完
+    （同步 API 无法中止），但单线程池保证它不会与新请求并发，
+    浏览器上下文在 finally 里回收，无资源泄漏。
+    """
+    try:
+        return await asyncio.wait_for(coro, timeout=timeout_s)
+    except asyncio.TimeoutError:
+        return base.fail(label, f"步骤超时：墙钟预算 {timeout_s:.0f}s 用尽"
+                                "（外部源响应过慢，本步放弃，其余步骤继续）")
+    except Exception as exc:  # noqa: BLE001 — 与原口径一致：单步异常不拖垮整条链
+        return base.fail(label, f"{type(exc).__name__}: {exc}")
+
+
 async def run_steps(category: str, marketplace: str = "US", budget: str = "中",
                     platform: str = "shopee", target_language: str = "en",
                     target_country: str = "美国", keyword: str = "",
                     keyword_cn: str = "", product_name: str = "",
                     include_content: bool = True,
                     allow_sample: bool = True,
+                    step_timeout_s: float | None = None,
                     ) -> AsyncIterator[dict[str, Any]]:
-    """逐步执行，yield 事件。事件类型：step_start / step_done / done。"""
+    """逐步执行，yield 事件。事件类型：step_start / step_done / done。
+
+    step_timeout_s：单步墙钟预算（秒）。None = 读 CONFIG.agent_step_timeout_s。
+    超时的步骤记 failed 并附原因，不阻塞后续步骤。
+    """
     started = time.monotonic()
+    budget_s = float(step_timeout_s if step_timeout_s is not None
+                     else CONFIG.agent_step_timeout_s)
+    mission_id = store.new_mission_id()
     state: dict[str, Any] = {"category": category, "product_name": product_name}
     completed: list[str] = []
     errors: list[str] = []
@@ -61,12 +95,11 @@ async def run_steps(category: str, marketplace: str = "US", budget: str = "中",
     # ---- 1. 市场洞察 ----
     yield _step_event("market_insight", "running")
     t0 = time.monotonic()
-    try:
-        mi = await market_insight.run(category, marketplace=marketplace,
-                                      keyword=keyword, keyword_cn=keyword_cn,
-                                      allow_sample=allow_sample)
-    except Exception as exc:
-        mi = base.fail("市场洞察Agent", f"{type(exc).__name__}: {exc}")
+    mi = await _run_step(
+        market_insight.run(category, marketplace=marketplace,
+                           keyword=keyword, keyword_cn=keyword_cn,
+                           allow_sample=allow_sample),
+        "市场洞察Agent", budget_s)
     dur = round(time.monotonic() - t0, 1)
     if mi.get("success"):
         state["market_insight"] = mi["data"]
@@ -84,12 +117,11 @@ async def run_steps(category: str, marketplace: str = "US", budget: str = "中",
     # ---- 2. 智能选品 ----
     yield _step_event("smart_selection", "running")
     t0 = time.monotonic()
-    try:
-        ss = await smart_selection.run(category, marketplace=marketplace,
-                                       budget=budget, keyword=keyword,
-                                       keyword_cn=keyword_cn)
-    except Exception as exc:
-        ss = base.fail("智能选品Agent", f"{type(exc).__name__}: {exc}")
+    ss = await _run_step(
+        smart_selection.run(category, marketplace=marketplace,
+                            budget=budget, keyword=keyword,
+                            keyword_cn=keyword_cn),
+        "智能选品Agent", budget_s)
     dur = round(time.monotonic() - t0, 1)
     if ss.get("success"):
         state["smart_selection"] = ss["data"]
@@ -124,13 +156,12 @@ async def run_steps(category: str, marketplace: str = "US", budget: str = "中",
         yield _step_event("content_generation", "running",
                           message=f"产品名取自{name_origin}：{name}")
         t0 = time.monotonic()
-        try:
-            cg = await content_generation.run(
+        cg = await _run_step(
+            content_generation.run(
                 name, category=category, platform=platform,
                 target_language=target_language, marketplace=marketplace,
-                keyword=keyword)
-        except Exception as exc:
-            cg = base.fail("内容生成Agent", f"{type(exc).__name__}: {exc}")
+                keyword=keyword),
+            "内容生成Agent", budget_s)
         dur = round(time.monotonic() - t0, 1)
         if cg.get("success"):
             state["content_generation"] = cg["data"]
@@ -147,10 +178,9 @@ async def run_steps(category: str, marketplace: str = "US", budget: str = "中",
     # ---- 4. 合规查询 ----
     yield _step_event("compliance", "running")
     t0 = time.monotonic()
-    try:
-        cp = await compliance.run(category, target_country=target_country)
-    except Exception as exc:
-        cp = base.fail("合规Agent", f"{type(exc).__name__}: {exc}")
+    cp = await _run_step(
+        compliance.run(category, target_country=target_country),
+        "合规Agent", budget_s)
     dur = round(time.monotonic() - t0, 1)
     if cp.get("success"):
         state["compliance"] = cp["data"]
@@ -167,8 +197,40 @@ async def run_steps(category: str, marketplace: str = "US", budget: str = "中",
     total = round(time.monotonic() - started, 1)
     state["steps_completed"] = completed
     state["errors"] = errors
+
+    # ---- 归档：与 orchestrator 同款，跑过的链路必须留下证据 ----
+    # 此前只有大屏 WS 通道会存档，React 主前端走的本链路跑完即散，
+    # 「任务可回放」在主链路上是空的，Admin 大屏的 missions_total 也不动。
+    # 归档归属同 orchestrator：登录租户写 tenant_id，演示模式为 None。
+    archive_path: str | None = None
+    archive_error: str | None = None
+    try:
+        archive_path = store.save_mission(
+            {"mission_id": mission_id,
+             "agent": AGENT,
+             "pipeline": "product_agents",
+             "goal": f"全链路工作流：{category} → {target_country}（{marketplace}）",
+             "started_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+             "finished_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+             "elapsed_s": total,
+             "plan_engine": "fixed_flow",  # 产品 Agent 全链路是固定四步流，
+                                            # 决策卡/自主性记账属于 orchestrator 通道
+             "results": {k: v for k, v in state.items() if k in STEP_LABELS},
+             "summary": {"steps_completed": len(completed),
+                         "total_steps": len(STEP_LABELS),
+                         "failed_steps": [e.split("：")[0] for e in errors]},
+             "autonomy": {"steps_completed": completed,
+                          "steps_failed": [e.split("：")[0] for e in errors]},
+             "provenance": provenance.stats()},
+            tenant_id=current_tenant_id.get())
+    except Exception as exc:  # noqa: BLE001
+        archive_error = f"{type(exc).__name__}: {exc}"
+
     yield {
         "event": "done",
+        "mission_id": mission_id,
+        "archive_path": archive_path,
+        "archive_error": archive_error,
         "state": state,
         "summary": {
             "category": category,

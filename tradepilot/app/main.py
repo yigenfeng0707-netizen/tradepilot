@@ -92,6 +92,35 @@ _QUOTA_WEIGHTS: dict[str, float] = {
 }
 
 
+# 匿名闸门（W1-5）：登录请求走配额表扣减，但匿名此前完全放行——公网 Demo
+# 上任何人可以无限制触发真实 LLM 推理（单次 60–90s）与 Playwright 抓取，
+# 成本与可用性双风险。做法是按 IP 滑动窗口限速（不是强制登录——
+# Demo 无摩擦对本赛事更重要）。窗口与上限取"够评委演示、挡不住脚本滥用"：
+# 5 分钟 10 次足够完整演示多轮，脚本级刷量会被卡住。
+_ANON_AGENT_LIMIT_PATHS = ("/api/agents/",)
+_ANON_WINDOW_S = 300.0
+_ANON_MAX_CALLS = 10
+_anon_hits: dict[str, list[float]] = {}
+
+
+def _anon_agent_allowed(ip: str | None) -> tuple[bool, str]:
+    """匿名访问 agent 类端点的滑动窗口判定。返回 (是否放行, 说明)。"""
+    if not ip:
+        return True, "无法解析客户端地址，放行（本地回环/ unix socket）"
+    now = time.monotonic()
+    hits = [t for t in _anon_hits.get(ip, []) if now - t < _ANON_WINDOW_S]
+    # 内存护栏：IP 表无界增长本身是 DoS 面，超过上限整体重置（罕见，重置后
+    # 最多让一个 IP 多用几次额度，不影响正确性）。
+    if len(_anon_hits) > 10_000:
+        _anon_hits.clear()
+    if len(hits) >= _ANON_MAX_CALLS:
+        _anon_hits[ip] = hits
+        return False, f"匿名调用频率超限：{_ANON_MAX_CALLS} 次 / {_ANON_WINDOW_S:.0f}s（按 IP），请登录获取完整配额"
+    hits.append(now)
+    _anon_hits[ip] = hits
+    return True, ""
+
+
 @app.middleware("http")
 async def metrics_middleware(request: Request, call_next):
     """请求计时与计数（M3-⑤）+ 租户 LLM 配额（M4）。
@@ -120,8 +149,15 @@ async def metrics_middleware(request: Request, call_next):
 
 async def _dispatch_with_quota(request: Request, call_next, path: str,
                                t0: float, tenant: str | None):
-    """配额判定 + 业务分发 + 请求计时（metrics_middleware 的主体）。"""
+    """配额判定 + 匿名限速 + 业务分发 + 请求计时（metrics_middleware 的主体）。"""
     weight = _QUOTA_WEIGHTS.get(path) if tenant else None
+    # 匿名访问 agent 类端点：按 IP 滑动窗口限速（登录用户走配额表，不限这里）
+    if tenant is None and path.startswith(_ANON_AGENT_LIMIT_PATHS):
+        ok, why = _anon_agent_allowed(request.client.host if request.client else None)
+        if not ok:
+            response = JSONResponse({"detail": why}, status_code=429)
+            monitoring.record_request(path, 429, time.perf_counter() - t0)
+            return response
     if weight is not None:
         q = quota.consume(tenant, weight)
         if not q["allowed"]:
@@ -902,7 +938,18 @@ async def react_app(path: str) -> FileResponse:
 
 @app.websocket("/ws/mission")
 async def mission_ws(ws: WebSocket) -> None:
-    """WebSocket 任务通道：收一条任务 JSON，流式回推决策卡与最终报告。"""
+    """WebSocket 任务通道：收一条任务 JSON，流式回推决策卡与最终报告。
+
+    匿名闸门：本通道暂无认证（大屏为内部运维视图），但此前完全开放意味着
+    公网上任何人可以无限制触发真实任务。复用 HTTP 层同款按 IP 滑动窗口。
+    """
+    ok, why = _anon_agent_allowed(ws.client.host if ws.client else None)
+    if not ok:
+        await ws.accept()
+        await ws.send_text(json.dumps({"type": "error", "summary": why},
+                                      ensure_ascii=False))
+        await ws.close()
+        return
     await ws.accept()
     try:
         raw = await ws.receive_text()
@@ -919,16 +966,10 @@ async def mission_ws(ws: WebSocket) -> None:
     async def runner() -> None:
         try:
             async for event in run_mission(req.goal, req.model_dump()):
-                if event["type"] == "mission_done":
-                    report = event["report"]
-                    report["provenance"] = provenance.stats()
-                    try:  # 落盘失败不影响任务结果，但要在事件里如实说明
-                        # ws 通道暂无认证（大屏为内部运维视图），存档归属 None
-                        # = 单机模式，登录租户看不到这些任务。REST 端点均已接租户。
-                        report["archive_path"] = store.save_mission(report)
-                    except Exception as exc:  # noqa: BLE001
-                        report["archive_path"] = None
-                        report["archive_error"] = f"{type(exc).__name__}: {exc}"
+                # 归档已在编排层（run_mission 内）完成：此前 WS 里再存一次是
+                # 覆盖写，且把 provenance 改成 stats 后重复落盘，口径混乱。
+                # WS 通道暂无认证（大屏为内部运维视图），编排层读到 tenant
+                # 为 None = 匿名口径，与 usage 记账一致。
                 await queue.put(event)
             await queue.put(None)
         except Exception as exc:  # noqa: BLE001

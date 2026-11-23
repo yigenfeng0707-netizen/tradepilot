@@ -56,6 +56,8 @@ export default function Pipeline() {
   const [stepStates, setStepStates] = useState<Record<string, StepState>>(emptyStates);
   const [summary, setSummary] = useState<PipelineSummary | null>(null);
   const [note, setNote] = useState('');
+  // 归档回执：任务 id 供「任务可回放」叙事现场点开 /api/missions/{id}
+  const [archive, setArchive] = useState<{ mission_id?: string; error?: string | null }>({});
   const abortRef = useRef<AbortController | null>(null);
 
   const completedCount = useMemo(
@@ -83,6 +85,7 @@ export default function Pipeline() {
             const s = (ev as unknown as { summary: PipelineSummary }).summary;
             setSummary(s);
             setNote(ev.note || '');
+            setArchive({ mission_id: ev.mission_id, error: ev.archive_error });
             return;
           }
           if (ev.event === 'step' && ev.step) {
@@ -256,6 +259,17 @@ export default function Pipeline() {
             <SummaryCard label="推荐产品" value={summary.product || '-'} highlight />
           </div>
           {note && <p className="mt-3 text-xs text-gray-500">{note}</p>}
+          {archive.mission_id && !archive.error && (
+            <p className="mt-2 text-xs text-jade-400">
+              任务已归档：<code>{archive.mission_id}</code>（在
+              <code> /api/missions/{archive.mission_id} </code>可回放本次结果）
+            </p>
+          )}
+          {archive.error && (
+            <p className="mt-2 text-xs text-gold-400">
+              本次任务未能归档：{archive.error}（结果仍完整展示，仅缺回放记录）
+            </p>
+          )}
           {completedCount < steps.length && (
             <p className="mt-1 text-xs text-gold-400">
               未全部完成：失败与跳过的步骤都在上面逐条写明了原因，没有任何一步用样本数据充数。

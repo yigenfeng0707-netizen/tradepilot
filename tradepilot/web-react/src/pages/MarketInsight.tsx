@@ -22,6 +22,9 @@ export default function MarketInsight() {
   const { selectedCategory, setSelectedCategory, targetMarket, setTargetMarket } = useStore();
   const [data, setData] = useState<MarketInsightData | null>(null);
   const [loading, setLoading] = useState(true);
+  // 请求失败与"真的没数据"必须分开：此前 catch 直接 setData(null)，
+  // 接口报错也被渲染成"暂无数据"，与"宁可报错也不编数据"的红线冲突。
+  const [error, setError] = useState<string | null>(null);
 
   const urlCategory = searchParams.get('category');
   const category = urlCategory || selectedCategory;
@@ -34,9 +37,18 @@ export default function MarketInsight() {
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     fetchMarketInsight(category, targetMarket)
-      .then(setData)
-      .catch(() => setData(null))
+      .then((d) => {
+        setData(d);
+        setError(null);
+      })
+      .catch((err: unknown) => {
+        // err 可能是 Error（网络/解析）或带 detail 的 Response 文本
+        const msg = err instanceof Error ? err.message : String(err);
+        setData(null);
+        setError(msg || '请求市场洞察失败');
+      })
       .finally(() => setLoading(false));
   }, [category, targetMarket]);
 
@@ -45,6 +57,32 @@ export default function MarketInsight() {
       <div className="flex h-96 items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-jade-500" />
         <span className="ml-3 text-gray-400">正在加载市场数据...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-96 flex-col items-center justify-center space-y-4">
+        <AlertTriangle size={32} className="text-gold-500" />
+        <p className="text-sm text-gray-400">市场洞察加载失败</p>
+        <p className="max-w-md text-center text-xs text-gray-500">{error}</p>
+        <button
+          onClick={() => {
+            setError(null);
+            setLoading(true);
+            fetchMarketInsight(category, targetMarket)
+              .then((d) => { setData(d); setError(null); })
+              .catch((err: unknown) => {
+                setData(null);
+                setError(err instanceof Error ? err.message : String(err));
+              })
+              .finally(() => setLoading(false));
+          }}
+          className="rounded-lg bg-jade-600 px-4 py-2 text-sm font-medium text-white hover:bg-jade-500 transition-colors"
+        >
+          重新加载
+        </button>
       </div>
     );
   }

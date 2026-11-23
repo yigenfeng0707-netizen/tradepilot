@@ -71,6 +71,12 @@ class Config:
 
     # 抓取策略
     fetch_timeout_s: int = 45
+    # 产品 Agent 全链路的单步墙钟预算：单步内部可能串行抓多个外部源，
+    # 各源超时相加无上限，弱网下一个慢源就能挂住整条链。150s 覆盖
+    # LLM 文案常态 60–90s；超时 → 该步诚实 fail，链路继续。
+    # 演示场景可用环境变量临时收紧（如 60s）观察降级行为。
+    agent_step_timeout_s: float = field(default_factory=lambda: float(os.environ.get(
+        "TRADEPILOT_AGENT_STEP_TIMEOUT_S", "150")))
     browser_headless: bool = True
     # 自定义 Chromium 路径（容器内系统浏览器 / 本地多版本共存时用）
     chromium_path: str = field(default_factory=lambda: os.environ.get(

@@ -71,10 +71,25 @@ def build_opc_brief(report: dict[str, Any]) -> dict[str, Any]:
     """把一次任务报告重排成 OPC「想法→生意」简报（纯函数，无 IO）。
 
     输入可以是归档任务报告，也可以是 WebSocket 实时报告——两者字段同构。
+    产品 Agent 全链路（React 主前端通道）归档的报告没有决策卡，
+    autonomy 里只记 steps_completed / steps_failed——此时按执行清单还原
+    状态，不把跑过的步骤标成"无数据"（W1-2 后主链路才落档，此前该端点
+    只认 orchestrator 通道，React 跑的任务打开全是"无数据"）。
     """
     autonomy = report.get("autonomy") or {}
     decisions = report.get("decisions") or []
     provenance = report.get("provenance") or {}
+
+    # 产品 Agent 全链路步骤名 → 价值链环节的映射（解释性映射，与
+    # STAGE_BUSINESS_MEANING 同性质）。
+    _PIPELINE_STEP_MAP = {
+        "smart_selection": "opportunity_scan",
+        "market_insight": "market_scan",
+        "content_generation": "listing_draft",
+        "compliance": "compliance_check",
+    }
+    _completed = {str(s) for s in autonomy.get("steps_completed") or []}
+    _failed = {str(s) for s in autonomy.get("steps_failed") or []}
 
     chain: list[dict[str, Any]] = []
     for i, decision in enumerate(decisions, 1):
@@ -95,7 +110,42 @@ def build_opc_brief(report: dict[str, Any]) -> dict[str, Any]:
 
     # 未出现在决策里的环节（降级/未执行/条件跳过）也要在价值链里露面，
     # 否则「全链路」就成了只挑跑通的说——把缺口摆出来才是可审计。
+    # 第二来源（仅当报告没有决策卡时启用，即产品 Agent 全链路通道）：
+    # autonomy.steps_completed / steps_failed 按映射还原出环节状态。
+    # 有决策卡时走下面的通用回退，避免覆盖 orchestrator 报告的真实状态。
     seen = {c["step"] for c in chain}
+    if not decisions:
+        _planned: list[tuple[str, str, str, str]] = []  # (环节, 状态, 说明, 来源步)
+        _mapped: dict[str, str] = {}  # 环节 -> 来源 pipeline 步名（带 summary）
+        for src, stage in _PIPELINE_STEP_MAP.items():
+            if stage in seen:
+                continue
+            if src in _failed:
+                _planned.append((stage, "降级", "本步未成功（产品链路如实记账，未伪装完成）", src))
+            elif src in _completed:
+                _planned.append((stage, "完成", "产品 Agent 全链路执行（无决策卡，按执行清单还原）", src))
+                _mapped[stage] = src
+            else:
+                _planned.append((stage, "未执行", "本步未在本次任务中运行", src))
+        for stage, status, note, src in _planned:
+            if stage in seen:
+                continue
+            seen.add(stage)
+            results = report.get("results") or {}
+            src_data = (results.get(_mapped[stage])
+                        if _mapped.get(stage) else None)
+            chain.append({
+                "order": None,
+                "step": stage,
+                "business_meaning": STAGE_BUSINESS_MEANING[stage],
+                "status": status,
+                "status_note": note,
+                "summary": (src_data or {}).get("message"),
+                "decision_reason": None,
+                "model_involved": False,
+                "model_overrode_rule": False,
+                "gate": None,
+            })
     for step in STAGE_BUSINESS_MEANING:
         if step in seen:
             continue

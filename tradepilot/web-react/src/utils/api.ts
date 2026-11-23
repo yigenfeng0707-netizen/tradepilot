@@ -126,8 +126,8 @@ export interface ContentGenerationData {
 export interface ChatReply {
   session_id: string;
   message_count: number;
-  reply: { text: string; type: string; priority: string; source: string; language: string };
-  emotion: { type: string; label: string; color: string; confidence: number; matched_keywords: string[] } | null;
+  reply: { text: string; generated_by: string; source: string; language: string };
+  emotion: { type: string; label: string; color: string; confidence?: number } | null;
   dispute: { detected: boolean; type: string | null; label: string | null; auto_resolve: boolean; escalation_threshold: number | null } | null;
   needs_human_escalation: boolean;
   session_summary: { total_messages: number; dispute_count: number; dominant_emotion: string };
@@ -315,12 +315,11 @@ async function postRequest<T>(url: string, body: unknown): Promise<T> {
 }
 
 // ===== 品类与市场（能力声明，非数据）=====
-const CATEGORIES: CategoryInfo[] = [
-  { key: '宠物用品', name: '宠物用品', description: '狗床/猫砂盆/自动喂食器等高增长品类' },
-  { key: '家居用品', name: '家居用品', description: '收纳/厨房/智能家居' },
-  { key: '3C数码', name: '3C数码', description: '充电配件/音频/手机配件' },
-  { key: '服装', name: '服装', description: 'T恤/家居服等基础款' },
-];
+// 品类名单的单一来源是 store/useStore.ts 的 `categories`（与后端
+// /api/capabilities 的 categories_with_builtin_keywords 名单核对一致）。
+// 此前这里另抄了一份"3C数码/服装"，与 store 的"3C电子/服装服饰"漂移，
+// 又只被死代码 fetchCategories() 使用——已删除，不再留第三份。
+// Home.tsx 的 categoryData 只多带图标与描述，name 与 store 名单保持一致。
 
 /** 市场代码映射：前端用中文市场名，后端用市场代码。
  *
@@ -336,7 +335,10 @@ export function toMarketplace(region?: string): string {
 }
 
 export async function fetchCategories(): Promise<CategoryInfo[]> {
-  return CATEGORIES;
+  // 品类名单单一来源已收敛到 store/useStore.ts 的 `categories`（见上方注释）。
+  // 保留本函数仅为兼容历史导入；不再返回本地硬编码名单。
+  const { categories } = await import('@/store/useStore');
+  return categories.map((name) => ({ key: name, name, description: '' }));
 }
 
 export interface Capabilities {
@@ -682,8 +684,10 @@ export async function sendChatMessage(params: {
         color: raw.emotion.type === 'angry' ? '#ef4444'
           : raw.emotion.type === 'negative' ? '#f59e0b'
           : raw.emotion.type === 'positive' ? '#10b981' : '#6b7280',
-        confidence: 0.8,
-        matched_keywords: [] as string[],
+        // 置信度只用后端真实给出的 score（规则命中计分）；后端没有就是
+        // undefined，界面不展示。此前硬编码 0.8 是编造的字段——
+        // 页面虽然没显示，但类型层把它当真数据往下传，违背"不编数据"红线。
+        confidence: typeof raw.emotion.score === 'number' ? raw.emotion.score : undefined,
       }
     : null;
 
@@ -692,9 +696,10 @@ export async function sendChatMessage(params: {
     message_count: Number(raw.message_count || 0),
     reply: {
       text: String(raw.reply || ''),
-      type: 'answer',
-      priority: 'normal',
-      source: raw.data_quality || 'sample_faq',
+      // type/priority 是后端没有的字段：改用后端真实有的 generated_by
+      //（llm / template）作为来源标记，不再发明 'answer'/'normal'。
+      generated_by: String(raw.generated_by || 'template'),
+      source: raw.data_quality || '未标注',
       language: String(raw.language || 'zh'),
     },
     emotion,
@@ -744,6 +749,11 @@ export interface PipelineEvent {
   event: 'step' | 'done';
   step?: string;
   label?: string;
+  // done 事件带回归档信息：跑过的链路留下证据（/api/missions 可回放）。
+  // archive_error 非空时如实展示，不静默。
+  mission_id?: string;
+  archive_path?: string | null;
+  archive_error?: string | null;
   status?: 'running' | 'done' | 'failed' | 'skipped';
   duration?: number;
   quality?: string;

@@ -55,3 +55,4 @@ tradepilot/cg_*.json
 # 根目录工作文档（交付台账/测试报告，非源码，公开仓不入库）
 /生产级交付todolist.md
 /TradePilot全面功能测试报告.docx
+tradepilot/.coverage

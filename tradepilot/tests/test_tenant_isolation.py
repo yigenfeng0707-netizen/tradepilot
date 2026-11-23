@@ -21,12 +21,19 @@ from app.config import CONFIG  # noqa: E402
 from app import auth, store  # noqa: E402
 
 _tmpdir = tempfile.mkdtemp(prefix="tradepilot-tenant-test-")
+_orig_store_config = store.CONFIG   # 模块结束必须还原：此前只替换不还原，
+_orig_auth_config = auth.CONFIG     # 后续测试模块的 save_mission 会写进本目录
 store.CONFIG = dataclasses.replace(CONFIG, data_dir=_tmpdir)
 auth.CONFIG = dataclasses.replace(CONFIG, data_dir=_tmpdir)
 
 
 def setUpModule():
     auth.init_db()
+
+
+def tearDownModule():
+    store.CONFIG = _orig_store_config
+    auth.CONFIG = _orig_auth_config
 
 
 def _mission(mid: str, goal: str) -> dict:

@@ -126,3 +126,47 @@ class TestOpcBrief(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestOpcBriefProductPipelineReport(unittest.TestCase):
+    """产品 Agent 全链路（React 主前端通道）的归档报告没有决策卡，
+    只有执行清单——简报必须按清单还原状态，不能全标"无数据"
+    （W1-2 主链路落档后必须能被 /api/opc/brief 正确消费）。"""
+
+    def _pipeline_report(self, completed, failed):
+        return {
+            "mission_id": "mission-20261123-042314-01e8af",
+            "goal": "全链路工作流：pet → 美国（US）",
+            "elapsed_s": 60.0,
+            "plan_engine": "fixed_flow",
+            "results": {},
+            "autonomy": {"steps_completed": completed, "steps_failed": failed},
+            "provenance": {},
+        }
+
+    def test_completed_pipeline_steps_map_to_stages(self):
+        brief = opc_brief.build_opc_brief(self._pipeline_report(
+            ["market_insight", "smart_selection", "content_generation", "compliance"],
+            []))
+        by_step = {c["step"]: c for c in brief["value_chain"]}
+        self.assertEqual(by_step["market_scan"]["status"], "完成")
+        self.assertEqual(by_step["opportunity_scan"]["status"], "完成")
+        self.assertEqual(by_step["listing_draft"]["status"], "完成")
+        self.assertEqual(by_step["compliance_check"]["status"], "完成")
+        # 映射环节之外的价值链环节如实标"无数据/未执行"（本次没跑，不假装）
+        self.assertIn(by_step["fx_rate"]["status"], ("无数据", "未执行"))
+
+    def test_failed_pipeline_step_is_degraded_not_success(self):
+        brief = opc_brief.build_opc_brief(self._pipeline_report(
+            ["market_insight"], ["compliance"]))
+        by_step = {c["step"]: c for c in brief["value_chain"]}
+        self.assertEqual(by_step["compliance_check"]["status"], "降级")
+        self.assertIn("如实记账", by_step["compliance_check"]["status_note"])
+
+    def test_orchestrator_reports_with_decisions_are_not_affected(self):
+        """有决策卡时仍走原有还原路径，映射不得覆盖决策卡状态。"""
+        report = sample_report()
+        report["decisions"][0]["status"] = "error"
+        brief = opc_brief.build_opc_brief(report)
+        first = [c for c in brief["value_chain"] if c["order"] == 1][0]
+        self.assertEqual(first["status"], "降级")
