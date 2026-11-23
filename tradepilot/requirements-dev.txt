@@ -1,3 +1,4 @@
 # 开发/评测依赖（运行时不装）。测试本身只用标准库 unittest，pytest 可选。
 pytest>=8.0
 ruff>=0.6
+coverage>=7.6    # 覆盖率门禁：CI 里 fail_under=85，防 84% 的读数无声退化

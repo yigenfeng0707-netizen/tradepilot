@@ -12,7 +12,6 @@
 """
 import asyncio
 import json
-import math
 import os
 import subprocess
 import sys
@@ -23,7 +22,6 @@ import wave
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-import httpx
 import websockets
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
@@ -379,7 +377,7 @@ def listing_detail_lines(dec, data):
         for c in checks:
             mark = "✓ 现场验证" if c.get("live") else "· 引用标注"
             lines.append((24, f"· {mark}: {c.get('item', '')[:60]}", WHITE if c.get("live") else GREY))
-        lines.append((22, f"来源存证 #" + str(data.get("checks", [{}])[0].get("provenance_id", "?")), GREY))
+        lines.append((22, "来源存证 #" + str(data.get("checks", [{}])[0].get("provenance_id", "?")), GREY))
     elif tool == "listing_draft":
         copy = data.get("copy", {})
         lines.append((28, f"生成方式: {data.get('generated_by', '?')}", GREEN))

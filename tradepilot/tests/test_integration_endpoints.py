@@ -238,7 +238,6 @@ class TestShopsListing(unittest.TestCase):
         self.assertFalse(out["shops"][0]["token_alive"])     # 没换过 token，如实
 
     def test_empty_list_for_new_tenant(self):
-        import tempfile as tf
         u2 = _User("shops2")
         out = asyncio.run(integration_shops("shopee", _req(u2.token)))
         self.assertEqual(out["shops"], [])

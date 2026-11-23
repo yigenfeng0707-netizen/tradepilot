@@ -35,8 +35,14 @@ jobs:
           cache-dependency-path: tradepilot/requirements.txt
       - name: Install dependencies
         run: pip install -r requirements.txt -r requirements-dev.txt
-      - name: Run test suite
-        run: python -m pytest tests -q
+      - name: Lint (ruff)
+        # 质量门禁：规则集见 tradepilot/ruff.toml（与既有风格对齐，只守真问题）
+        run: python -m ruff check app tests scripts
+      - name: Run test suite with coverage
+        # 覆盖率门禁：低于 85% 直接红——基线是读数不是承诺，退化必须被看见
+        run: |
+          python -m coverage run -m pytest tests -q
+          python -m coverage report --include="app/*" --fail-under=85
         env:
           # CI 里不许写用户目录；数据进 runner 临时盘
           TRADEPILOT_DATA_DIR: ${{ runner.temp }}/tradepilot-data
@@ -56,6 +62,8 @@ jobs:
           cache-dependency-path: tradepilot/web-react/package-lock.json
       - name: Install dependencies
         run: npm ci
+      - name: Lint (eslint)
+        run: npm run lint
       - name: Type check
         run: npm run check
       - name: Build

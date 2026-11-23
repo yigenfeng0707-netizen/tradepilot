@@ -27,7 +27,9 @@ def available() -> bool:
 
 def _extract_json(text: str) -> dict[str, Any] | None:
     """宽容 JSON 提取：剥围栏、取首个平衡对象。"""
-    text = (text or "").strip().strip("`").lstrip("json").strip()
+    text = (text or "").strip().strip("`").strip()
+    text = text.removeprefix("json").strip()  # removeprefix 剥的是前缀不是字符集：
+    # lstrip("json") 会把 "no, here is..." 的首字母 n/o 吃掉再解析，必失败
     try:
         parsed = json.loads(text)
         return parsed if isinstance(parsed, dict) else None
@@ -50,12 +52,17 @@ def _extract_json(text: str) -> dict[str, Any] | None:
         return None
 
 
-async def chat(system: str, user: str, max_tokens: int = 800) -> str | None:
+async def chat(system: str, user: str, max_tokens: int = 800,
+                 client_factory: Any = None) -> str | None:
     """返回模型正文；不可用/失败一律返回 None（调用方自行降级）。
 
     每次实际发出的调用都记 token usage（M4 计费地基）：租户来自
     request_context（middleware 设置，agents 链路不用改签名）；
     usage 字段拿不到如实记 0，调用本身仍是计费事件。
+
+    client_factory：依赖注入点（默认 None = 生产构造），供测试注入
+    MockTransport 客户端——此前 chat 内联构造 client，重试矩阵零覆盖。
+    生产行为完全不变。
     """
     if not available():
         return None
@@ -64,7 +71,8 @@ async def chat(system: str, user: str, max_tokens: int = 800) -> str | None:
         if attempt > 1:
             await asyncio.sleep(2)   # 瞬时 502 / DNS 抖动通常秒级恢复
         try:
-            async with httpx.AsyncClient(timeout=150) as client:
+            async with (client_factory() if client_factory
+                     else httpx.AsyncClient(timeout=CONFIG.llm_timeout_s)) as client:
                 resp = await client.post(
                     f"{CONFIG.llm_base_url}/chat/completions",
                     headers={"Authorization": f"Bearer {CONFIG.llm_api_key}"},
@@ -104,7 +112,9 @@ async def chat(system: str, user: str, max_tokens: int = 800) -> str | None:
                 last_exc = exc
                 continue
             print(f"[llm] 网关调用失败降级: {type(exc).__name__}: "
-                  f"{exc.response.status_code} {exc.response.text[:120]}", flush=True)
+                  f"{exc.response.status_code} {exc.response.text[:120]}"
+                  + (f"（已重试，最后一次根因: {last_exc}）" if last_exc else ""),
+                  flush=True)
             return None
         except (httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout) as exc:
             # 连接类瞬时故障：Cloud Run 实例偶发 DNS 解析失败（实测 name resolution

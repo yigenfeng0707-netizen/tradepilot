@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-"""阶跃 API 连通性探针：从 D:\阶跃5preview.txt 读 key（不写死在代码里），测 step-5-preview。"""
-import json
+r"""阶跃 API 连通性探针：从 D:\阶跃5preview.txt 读 key（不写死在代码里），测 step-5-preview。"""
 import re
 import sys
 

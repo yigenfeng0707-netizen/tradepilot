@@ -71,7 +71,6 @@ export default function Admin() {
     // 挂载时若有已存令牌就自动加载一次；失效会在此处被清掉
     const saved = sessionStorage.getItem(TOKEN_KEY);
     if (saved) void load(saved);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!data) {

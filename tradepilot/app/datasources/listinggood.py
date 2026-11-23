@@ -206,7 +206,7 @@ async def _shallow(client: httpx.AsyncClient, copy: dict[str, Any],
     data = r.json()
     report = data.get("report") or {}
     issues, dup = _norm_shallow(report)
-    note = f"浅检为关键词表规则，已知误报：把 'stops sliding' 的 stops 判医疗宣称。"
+    note = "浅检为关键词表规则，已知误报：把 'stops sliding' 的 stops 判医疗宣称。"
     if dup:
         note += f" 原始报告有 {dup} 条重复命中，已去重。"
     return Review(

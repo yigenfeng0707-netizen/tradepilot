@@ -15,7 +15,6 @@ import unittest
 from unittest import mock
 
 from app.datasources import marketplace_auth as mauth, shopify
-from app.datasources.openapi_http import ApiResult
 
 
 def _mock_json_response(body: dict, status: int = 200):

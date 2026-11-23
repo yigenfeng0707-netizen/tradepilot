@@ -156,7 +156,7 @@ interface ApiEnvelope<T> {
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${url}`, {
-    headers: { 'Content-Type': 'application/json', ...authHeader(url) },
+    headers: { 'Content-Type': 'application/json', ...authHeader() },
     ...options,
   });
   // 访问令牌过期（30 分钟）时静默续期一次再重放。/auth/ 自己不参与，
@@ -224,7 +224,7 @@ export function hasSession(): boolean {
   return Boolean(getAccessToken());
 }
 
-function authHeader(url: string): Record<string, string> {
+function authHeader(): Record<string, string> {
   // 有令牌就带上。曾经对 /auth/ 一律不带——但 /auth/me 恰恰需要令牌，
   // 于是刷新页面后永远 401。登录/注册带了过期令牌也无害，不值得为它开特例。
   const token = getAccessToken();
@@ -310,6 +310,11 @@ export async function fetchMe(): Promise<AuthUser> {
   return request<AuthUser>('/auth/me');
 }
 
+// 后端 JSON 响应边界类型：响应形状尚未契约化（逐端点在用现场窄化），
+// 与其每处 any 触发 lint，不如集中一个受控别名。改动此类型必须同步检查窄化。
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type RawResponse = Record<string, any>;
+
 async function postRequest<T>(url: string, body: unknown): Promise<T> {
   return request<T>(url, { method: 'POST', body: JSON.stringify(body) });
 }
@@ -363,7 +368,7 @@ export async function fetchMarketInsight(
   category: string,
   region?: string,
 ): Promise<MarketInsightData> {
-  const raw = await postRequest<Record<string, any>>('/agents/market-insight', {
+  const raw = await postRequest<RawResponse>('/agents/market-insight', {
     category,
     marketplace: toMarketplace(region),
     allow_sample: true,
@@ -375,7 +380,7 @@ export async function fetchMarketInsight(
     volume_share: String(t.volume_share || ''),
   }));
 
-  const competitors: Competitor[] = (raw.competitors || []).map((c: Record<string, any>) => ({
+  const competitors: Competitor[] = (raw.competitors || []).map((c: Record<string, unknown>) => ({
     name: String(c.title || '').slice(0, 48),
     origin: String(c.source || ''),
     market_share: `${c.price} ${c.currency || ''}`,
@@ -394,9 +399,9 @@ export async function fetchMarketInsight(
     recommendations: (raw.recommendations || []) as Recommendation[],
     risks: (raw.risks || []) as Risk[],
     data_sources: (raw.sources_tried || []) as string[],
-    data_quality: raw.data_quality,
-    note: raw.note,
-    provenance_ids: raw.provenance_ids,
+    data_quality: raw.data_quality as 'real' | 'sample' | undefined,
+    note: String(raw.note || ''),
+    provenance_ids: raw.provenance_ids as number[],
     generated_by: raw.generated_by,
   };
 }
@@ -408,7 +413,7 @@ export async function fetchSmartSelection(
   targetMarket?: string,
   keyword?: string,
 ): Promise<SmartSelectionData> {
-  const raw = await postRequest<Record<string, any>>('/agents/smart-selection', {
+  const raw = await postRequest<RawResponse>('/agents/smart-selection', {
     category,
     marketplace: toMarketplace(targetMarket),
     budget: budget || '中',
@@ -418,7 +423,7 @@ export async function fetchSmartSelection(
   });
 
   const products: ProductRecommendation[] = (raw.product_recommendations || []).map(
-    (p: Record<string, any>) => ({
+    (p: Record<string, unknown>) => ({
       product: String(p.product || ''),
       predicted_sales: String(p.predicted_sales || ''),
       rating: String(p.rating || ''),
@@ -491,7 +496,7 @@ export interface SystemStatus {
 }
 
 export async function fetchSystemStatus(): Promise<SystemStatus> {
-  const raw = await request<Record<string, any>>('/health');
+  const raw = await request<RawResponse>('/health');
   return {
     status: String(raw.status || 'unknown'),
     llm: Boolean(raw.llm),
@@ -507,7 +512,7 @@ export async function generateContent(params: {
   product_name: string; category: string; platform?: string; target_language?: string;
   marketplace?: string; keyword?: string;
 }): Promise<ContentGenerationData> {
-  const raw = await postRequest<Record<string, any>>('/agents/content-generation', {
+  const raw = await postRequest<RawResponse>('/agents/content-generation', {
     product_name: params.product_name,
     category: params.category,
     platform: params.platform || 'shopee',
@@ -670,26 +675,29 @@ export async function fetchComplianceCheck(
 export async function sendChatMessage(params: {
   message: string; category?: string; language?: string; session_id?: string;
 }): Promise<ChatReply> {
-  const raw = await postRequest<Record<string, any>>('/agents/customer-chat', {
+  const raw = await postRequest<RawResponse>('/agents/customer-chat', {
     message: params.message,
     category: params.category || '通用',
     language: params.language || 'zh',
     session_id: params.session_id || 'default',
   });
 
-  const emotion = raw.emotion
+  const rawEmotion = raw.emotion as { type?: string; label?: string; score?: number } | undefined;
+  const emotion = rawEmotion
     ? {
-        type: String(raw.emotion.type || 'neutral'),
-        label: String(raw.emotion.label || '中性'),
-        color: raw.emotion.type === 'angry' ? '#ef4444'
-          : raw.emotion.type === 'negative' ? '#f59e0b'
-          : raw.emotion.type === 'positive' ? '#10b981' : '#6b7280',
+        type: String(rawEmotion.type || 'neutral'),
+        label: String(rawEmotion.label || '中性'),
+        color: rawEmotion.type === 'angry' ? '#ef4444'
+          : rawEmotion.type === 'negative' ? '#f59e0b'
+          : rawEmotion.type === 'positive' ? '#10b981' : '#6b7280',
         // 置信度只用后端真实给出的 score（规则命中计分）；后端没有就是
         // undefined，界面不展示。此前硬编码 0.8 是编造的字段——
         // 页面虽然没显示，但类型层把它当真数据往下传，违背"不编数据"红线。
-        confidence: typeof raw.emotion.score === 'number' ? raw.emotion.score : undefined,
+        confidence: typeof rawEmotion.score === 'number' ? rawEmotion.score : undefined,
       }
     : null;
+
+  const dispute = raw.dispute as { type?: string; label?: string; level?: string } | undefined;
 
   return {
     session_id: String(raw.session_id || 'default'),
@@ -699,32 +707,33 @@ export async function sendChatMessage(params: {
       // type/priority 是后端没有的字段：改用后端真实有的 generated_by
       //（llm / template）作为来源标记，不再发明 'answer'/'normal'。
       generated_by: String(raw.generated_by || 'template'),
-      source: raw.data_quality || '未标注',
+      source: String(raw.data_quality || '未标注'),
       language: String(raw.language || 'zh'),
     },
     emotion,
-    dispute: raw.dispute
+    dispute: dispute
       ? {
           detected: true,
-          type: String(raw.dispute.type || ''),
-          label: String(raw.dispute.label || ''),
-          auto_resolve: raw.dispute.level !== 'critical',
-          escalation_threshold: raw.dispute.level === 'critical' ? 0 : null,
+          type: String(dispute.type || ''),
+          label: String(dispute.label || ''),
+          auto_resolve: dispute.level !== 'critical',
+          escalation_threshold: dispute.level === 'critical' ? 0 : null,
         }
       : { detected: false, type: null, label: null, auto_resolve: false, escalation_threshold: null },
-    needs_human_escalation: raw.dispute?.level === 'critical',
+    needs_human_escalation: dispute?.level === 'critical',
     session_summary: {
       total_messages: Number(raw.message_count || 0),
       dispute_count: raw.dispute ? 1 : 0,
-      dominant_emotion: String(raw.emotion?.label || '中性'),
+      dominant_emotion: String(emotion?.label || '中性'),
     },
-    data_quality: raw.data_quality,
-    note: raw.note,
+    data_quality: String(raw.data_quality || ''),
+    note: String(raw.note || ''),
   };
 }
 
-export async function fetchFAQ(_category: string, _language: string = 'zh'): Promise<FAQData> {
+export async function fetchFAQ(category: string, language: string = 'zh'): Promise<FAQData> {
   return { faqs: [] };  // 无 FAQ 查询端点；客服对话时后端会返回命中条目
+  void category; void language;  // 参数留给将来接后端 FAQ 端点
 }
 
 // ===== 全链路（M2 待接入）=====
@@ -908,7 +917,7 @@ async function readDetailError(res: Response, fallback: string): Promise<string>
 /** 店铺授权页链接。409 = 凭证未配置（该去平台后台建 App），原样转述。 */
 export async function fetchIntegrationAuthUrl(platform: string): Promise<string> {
   const res = await fetch(`${BASE_URL}/integrations/${platform}/auth-url`, {
-    headers: authHeader(''),
+    headers: authHeader(),
   });
   if (!res.ok) throw new Error(await readDetailError(res, '获取授权链接失败'));
   const data = (await res.json()) as { auth_url: string };
@@ -918,7 +927,7 @@ export async function fetchIntegrationAuthUrl(platform: string): Promise<string>
 /** 本租户已授权店铺清单（跨租户的店铺在这里根本不出现）。 */
 export async function fetchIntegrationShops(platform: string): Promise<ShopAuthorization[]> {
   const res = await fetch(`${BASE_URL}/integrations/${platform}/shops`, {
-    headers: authHeader(''),
+    headers: authHeader(),
   });
   if (res.status === 401) throw new Error('请先登录后再查看店铺');
   if (!res.ok) throw new Error(await readDetailError(res, '加载店铺清单失败'));
@@ -933,7 +942,7 @@ export async function exchangeIntegrationCode(
 ): Promise<{ shop_id: string; has_refresh: boolean }> {
   const res = await fetch(`${BASE_URL}/integrations/${platform}/exchange`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeader('') },
+    headers: { 'Content-Type': 'application/json', ...authHeader() },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(await readDetailError(res, '换令牌失败'));
@@ -951,7 +960,7 @@ export async function shopApiCall(
     `${BASE_URL}/integrations/${platform}/shops/${encodeURIComponent(shopId)}/call`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeader('') },
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
       body: JSON.stringify(body),
     },
   );
@@ -984,7 +993,7 @@ export interface MeUsage {
 
 /** 当前租户用量自查（匿名没有账可查——401 原样转述）。 */
 export async function fetchMeUsage(): Promise<MeUsage> {
-  const res = await fetch(`${BASE_URL}/me/usage`, { headers: authHeader('') });
+  const res = await fetch(`${BASE_URL}/me/usage`, { headers: authHeader() });
   if (res.status === 401) throw new Error('请先登录后再查看用量');
   if (!res.ok) throw new Error(await readDetailError(res, '加载用量失败'));
   return res.json() as Promise<MeUsage>;
@@ -996,7 +1005,7 @@ export async function connectShopify(body: {
 }): Promise<{ success: boolean; shop_id: string; shop_name: string; note?: string }> {
   const res = await fetch(`${BASE_URL}/integrations/shopify/connect`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeader('') },
+    headers: { 'Content-Type': 'application/json', ...authHeader() },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(await readDetailError(res, '连接失败'));

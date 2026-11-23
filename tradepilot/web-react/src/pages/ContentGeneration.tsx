@@ -78,7 +78,6 @@ export default function ContentGeneration() {
     { code: 'shopee', label: 'Shopee', title_max: 255, desc_max: 3000, highlight_n: 5 },
   ];
   const currentLang = languages.find((l) => l.code === targetLang);
-  const currentPlatform = platforms.find((p) => p.code === platform);
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">

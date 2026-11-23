@@ -11,7 +11,6 @@
 说明：这些测试用 httpx.MockTransport 验证的是"我们发什么、怎么判成败"，
 **不能证明平台服务端接受我们的签名**——那必须用真实凭证联调一次。
 """
-import asyncio
 import json
 import time
 import unittest

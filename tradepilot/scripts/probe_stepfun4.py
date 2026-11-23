@@ -2,7 +2,6 @@
 """阶跃排查第三轮：标准端点模型全清单 + 用标准模型试聊天 + 计划用量全量。"""
 import json
 import re
-import sys
 
 import httpx
 

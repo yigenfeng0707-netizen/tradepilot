@@ -11,7 +11,6 @@
 4. **只读打开源库**：迁移脚本绝不允许写源库。
 """
 import dataclasses
-import json
 import tempfile
 import unittest
 from pathlib import Path

@@ -5,7 +5,7 @@ import {
   Sparkles, ShieldCheck, RefreshCw, AlertTriangle, SkipForward,
 } from 'lucide-react';
 import { categories } from '@/store/useStore';
-import { streamPipeline, type PipelineEvent } from '@/utils/api';
+import { streamPipeline } from '@/utils/api';
 
 const regions = ['欧美', '东南亚'];
 const budgets = ['低', '中', '高'];
@@ -292,7 +292,9 @@ function SummaryCard({ label, value, highlight }: { label: string; value: string
 
 /** 每一步只展示该步骤**真实返回**的字段，不做推算、不补默认值。 */
 function StepSummary({ stepKey, data }: { stepKey: string; data: unknown }) {
-  const d = data as Record<string, any>;
+  // 后端逐步返回的 step data 形状未契约化：按 any 取用，渲染处统一 String() 兜底
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const d = data as Record<string, any>;
   switch (stepKey) {
     case 'market_insight': {
       const band = d.price_band as { min: number; max: number; median: number } | undefined;

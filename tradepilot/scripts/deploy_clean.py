@@ -85,7 +85,7 @@ def _stash(keys: list[str]) -> int:
         print("已移出上传目录：")
         for m in moved:
             print(f"  - {m}")
-    print(f"\n现在可以部署。部署完成后执行：python scripts/deploy_clean.py restore")
+    print("\n现在可以部署。部署完成后执行：python scripts/deploy_clean.py restore")
     return 0
 
 

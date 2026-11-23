@@ -9,13 +9,10 @@
 5. **登录限速**：同 IP 连续失败锁定，防撞库。
 """
 import dataclasses
-import os
 import secrets
 import sqlite3
 import tempfile
-import time
 import unittest
-from unittest import mock
 
 # 给 auth 模块一份独立的 Config（只换 data_dir），不污染全局单例：
 # pytest 单进程收集所有测试，直接改 CONFIG.data_dir 会连累别的测试模块。
@@ -112,7 +109,8 @@ class TestTokens(unittest.IsolatedAsyncioTestCase):
         """JWT 是 base64 不是加密，邮箱/公司名不许放进去。"""
         token = auth.issue_access_token(self.user_id, self.tenant_id)
         self.assertNotIn("@", token)          # 邮箱至少会留下 @ 的痕迹
-        import base64, json as j
+        import base64
+        import json as j
         payload_b64 = token.split(".")[1]
         payload_b64 += "=" * (-len(payload_b64) % 4)
         payload = j.loads(base64.urlsafe_b64decode(payload_b64))
@@ -163,6 +161,9 @@ class TestTokens(unittest.IsolatedAsyncioTestCase):
 
     def test_current_user_rejects_bad_header(self):
         token = auth.issue_access_token(self.user_id, self.tenant_id)
+        # 合法 token 作为对照：真正被拒的应是格式错误/空的头
+        self.assertEqual(auth.current_user(f"Bearer {token}")["user_id"],
+                         self.user_id)
         self.assertIsNone(auth.current_user(None))
         self.assertIsNone(auth.current_user("Basic abc"))
         self.assertIsNone(auth.current_user("Bearer not-a-token"))

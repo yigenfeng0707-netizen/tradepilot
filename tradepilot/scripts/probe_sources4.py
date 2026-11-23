@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """探针第四轮：京东公开搜索（真实采购端价格）+ frankfurter 汇率 API + 速卖通移动端。"""
-import json
 import re
 import sys
 

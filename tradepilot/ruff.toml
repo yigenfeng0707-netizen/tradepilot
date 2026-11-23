@@ -1,0 +1,9 @@
+# ruff 规则集：与既有代码风格对齐（不追全量默认规则），先守真问题。
+# 升级姿势：修掉存量 → 扩规则 → 再跑全量测试。
+lint.select = ["E4", "E7", "E9", "F", "W6"]
+
+[lint.per-file-ignores]
+# 一次性探针/视频帧脚本：保留给历史排查用，存量风格不再回填
+"scripts/probe_*.py" = ["E741", "F841"]
+"scripts/build_video.py" = ["E741", "F841"]
+"scripts/build_90s_video.py" = ["F841"]

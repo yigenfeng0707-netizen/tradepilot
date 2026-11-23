@@ -183,7 +183,8 @@ class TestOpportunityTool(unittest.TestCase):
 
     def test_noise_accounting_counts_filtered_items(self) -> None:
         table = {"a": {"keyword_used": "a", "currency": "USD", "items": items(8, 10.0)}}
-        keep = lambda *a, **k: any(f"charger {i}" in a[0] for i in range(4))  # 8 留 4
+        def keep(*a, **k):
+            return any(f"charger {i}" in a[0] for i in range(4))  # 8 留 4
         with mock.patch.object(O, "scan", fake_scan(table)), \
                 mock.patch.object(O, "is_book", lambda t: False), \
                 mock.patch.object(O, "relevant", keep):
