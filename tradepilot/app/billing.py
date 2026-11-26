@@ -102,7 +102,9 @@ def new_trade_no(prefix: str = "TP") -> str:
 
 
 def create_order(tenant_id: str, plan: str) -> dict[str, Any]:
-    """下单：plan 合法性、价格均服务端定。返回订单与支付链接原料。"""
+    """下单：plan 合法性、价格均服务端定。返回订单（支付页由
+    GET /pay/{out_trade_no} 提供——biz_content 拼 URL 的网关直链会被
+    支付宝风控判钓鱼页，2026-11-26 实测，见 payment.page_pay_form）。"""
     if plan not in PLANS:
         raise ValueError(f"未知套餐: {plan}")
     if not payment.configured():
@@ -119,8 +121,7 @@ def create_order(tenant_id: str, plan: str) -> dict[str, Any]:
             (no, tenant_id, plan, spec["price"], "PENDING",
              1 if spec["test"] else 0, _now_iso(), expires.isoformat()))
     return {"out_trade_no": no, "plan": plan, "amount": spec["price"],
-            "subject": spec["subject"], "test": spec["test"],
-            "pay_url": payment.page_pay_url(no, spec["subject"], spec["price"])}
+            "subject": spec["subject"], "test": spec["test"]}
 
 
 def _row_dict(row: sqlite3.Row) -> dict[str, Any]:
@@ -135,6 +136,16 @@ def get_order(tenant_id: str, out_trade_no: str) -> dict[str, Any] | None:
         row = conn.execute(
             "SELECT * FROM orders WHERE out_trade_no = ? AND tenant_id = ?",
             (out_trade_no, tenant_id)).fetchone()
+    return _row_dict(row) if row else None
+
+
+def get_order_by_no(out_trade_no: str) -> dict[str, Any] | None:
+    """公开支付页用：只按单号查（不带租户）。泄露面=subject/金额，无
+    履约/身份信息；真实支付仍需验签，篡改单号骗不到东西。"""
+    with _db() as conn:
+        row = conn.execute(
+            "SELECT * FROM orders WHERE out_trade_no = ?",
+            (out_trade_no,)).fetchone()
     return _row_dict(row) if row else None
 
 

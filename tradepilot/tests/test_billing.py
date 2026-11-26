@@ -72,15 +72,27 @@ class TestSignVerify(unittest.TestCase):
         self.assertFalse(payment.verify_notify({"out_trade_no": "1"}))
 
 
-class TestPagePayUrl(unittest.TestCase):
-    def test_url_contains_signed_params(self):
-        url = payment.page_pay_url("TP1", "测试商品", 0.01)
-        self.assertIn("https://openapi.alipay.com/gateway.do?", url)
-        self.assertIn("alipay.trade.page.pay", url)
-        # total_amount/subject 在 biz_content 内（page.pay 标准结构）
-        self.assertIn("total_amount", url)
-        self.assertIn("FAST_INSTANT_TRADE_PAY", url)
-        self.assertIn("sign=", url)
+class TestPagePayForm(unittest.TestCase):
+    """自动提交表单（GET 直链已被支付宝风控判钓鱼页，见 page_pay_form 注释）。"""
+
+    def test_form_posts_biz_content_in_body(self):
+        html = payment.page_pay_form("TP1", "测试商品", 0.01)
+        # action 只带通用参数 + sign：biz_content 与 alipay_sdk 必须在表单体里
+        action_part = html.split('action="', 1)[1].split('"', 1)[0]
+        self.assertIn("https://openapi.alipay.com/gateway.do?", action_part)
+        self.assertIn("alipay.trade.page.pay", action_part)
+        self.assertIn("sign=", action_part)
+        self.assertNotIn("biz_content", action_part)
+        self.assertIn("total_amount", html)   # 在 hidden input 的 biz_content 里
+        self.assertIn("FAST_INSTANT_TRADE_PAY", html)
+        self.assertIn('name="alipay_sdk"', html)
+        # 自动提交 + 无 JS 回退
+        self.assertIn("onload=\"document.forms[0].submit()\"", html)
+        self.assertIn("<noscript>", html)
+
+    def test_form_escapes_html(self):
+        html = payment.page_pay_form("TP1", "<script>x</script>", 0.01)
+        self.assertNotIn("<script>x</script>", html)
 
     def test_amount_two_decimals(self):
         self.assertEqual(payment.format_amount(199.0), "199.00")
@@ -98,7 +110,7 @@ class TestOrders(unittest.TestCase):
     def test_create_and_mark_paid_upgrades_quota(self):
         order = billing.create_order("tenant-A", "pro")
         self.assertEqual(order["amount"], 199.00)
-        self.assertTrue(order["pay_url"].startswith("https://openapi.alipay.com"))
+        self.assertNotIn("pay_url", order)  # 支付页由 /pay/{no} 提供，下单不再回网关直链
         self.assertTrue(billing.mark_paid(order["out_trade_no"], "T1", via="notify"))
         # 已付再 mark：幂等，返回 False 不重复履约
         self.assertFalse(billing.mark_paid(order["out_trade_no"], "T1", via="notify"))
@@ -237,6 +249,16 @@ class TestNotifyEndpointMultipart(unittest.TestCase):
             conn.execute("DELETE FROM tenant_limits")
         self.order = billing.create_order("tenant-A", "pro")
 
+    def tearDown(self):
+        # mark_paid 会在 quota 库留 tenant_limits 行；pytest 收集阶段
+        # 各模块的 CONFIG 替换使全进程共享最终临时库，跑完不清会污染
+        # 后续 test_quota（2026-11-26 CI 实测踩过）
+        with billing._db() as conn:
+            conn.execute("DELETE FROM orders")
+            conn.execute("DELETE FROM notify_seen")
+        with quota._db() as conn:
+            conn.execute("DELETE FROM tenant_limits")
+
     def _post_form(self, **over):
         base = {
             "app_id": "2021000000000001",
@@ -284,6 +306,78 @@ class TestNotifyEndpointMultipart(unittest.TestCase):
         r = self.client.post("/alipay/notify", data=form)
         self.assertEqual(r.status_code, 200, r.text)
         self.assertEqual(r.text, "fail")
+
+
+class TestPayPageEndpoint(unittest.TestCase):
+    """公开支付页 GET /pay/{no}：自动提交表单（替代钓鱼页 linked 的网关直链）。
+
+    回归 2026-11-26 生产实测：biz_content 拼在 URL 里的 GET 链接被支付宝
+    风控判"支付存在钓鱼风险"，故下单端点改回应用内 /pay/{no}，表单 body
+    提交 biz_content。端点公开（买单人未必登录），真实性靠支付侧签名。
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        from fastapi.testclient import TestClient
+        from app.main import app
+        cls._cm = TestClient(app)
+        cls._cm.__enter__()
+        cls.client = cls._cm
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._cm.__exit__(None, None, None)
+
+    def setUp(self):
+        with billing._db() as conn:
+            conn.execute("DELETE FROM orders")
+            conn.execute("DELETE FROM notify_seen")
+        with quota._db() as conn:
+            conn.execute("DELETE FROM tenant_limits")
+
+    def tearDown(self):
+        # 同 TestNotifyEndpointMultipart：清掉 mark_paid 残留的配额行，
+        # 避免污染后续 test_quota（见该类 tearDown 注释）
+        with billing._db() as conn:
+            conn.execute("DELETE FROM orders")
+            conn.execute("DELETE FROM notify_seen")
+        with quota._db() as conn:
+            conn.execute("DELETE FROM tenant_limits")
+
+    def test_pending_order_returns_auto_submit_form(self):
+        order = billing.create_order("tenant-A", "self_test")
+        r = self.client.get(f"/pay/{order['out_trade_no']}")
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertIn("text/html", r.headers["content-type"])
+        # action 只含通用参数，biz_content 在 hidden input
+        action = r.text.split('action="', 1)[1].split('"', 1)[0]
+        self.assertNotIn("biz_content", action)
+        self.assertIn('name="alipay_sdk"', r.text)
+
+    def test_paid_order_refuses_repay(self):
+        order = billing.create_order("tenant-A", "pro")
+        billing.mark_paid(order["out_trade_no"], "T-PAY", via="query")
+        r = self.client.get(f"/pay/{order['out_trade_no']}")
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("无需重复支付", r.text)
+        self.assertNotIn("onload", r.text)
+
+    def test_unknown_order_404(self):
+        r = self.client.get("/pay/TP-NOPE")
+        self.assertEqual(r.status_code, 404)
+
+    def test_create_order_response_points_to_local_pay_page(self):
+        """下单端点回 /pay/{no}，不再是网关直链。"""
+        import secrets
+        user = f"paypg{secrets.token_hex(3)}"
+        resp = self.client.post("/api/auth/register",
+                                json={"email": f"{user}@test.com", "password": "Test12345!",
+                                      "company": "T"})
+        token = resp.json()["access_token"]
+        r = self.client.post("/api/billing/create-order", json={"plan": "self_test"},
+                             headers={"X-Auth-Token": token})
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertTrue(r.json()["pay_url"].endswith(f"/pay/{r.json()['out_trade_no']}"))
 
 
 _counter_seq = [0]

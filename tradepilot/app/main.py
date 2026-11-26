@@ -12,8 +12,9 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import (FileResponse, JSONResponse, PlainTextResponse,
-                               RedirectResponse, StreamingResponse)
+from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse,
+                               PlainTextResponse, RedirectResponse,
+                               StreamingResponse)
 from pydantic import BaseModel
 
 from . import (auth, billing, llm, monitoring, payment, provenance, quota,
@@ -550,7 +551,7 @@ class BillingOrderIn(BaseModel):
 @app.post("/api/billing/create-order")
 async def billing_create_order(body: BillingOrderIn,
                                request: Request) -> dict[str, Any]:
-    """下单：登录租户按套餐创建订单并签名支付链接。
+    """下单：登录租户按套餐创建订单，返回应用内支付页地址。
 
     未配置支付凭证时 503 明说（fail closed，不假装能收钱）。
     价格、权益、自测标记全在服务端 PLANS，防低价下单。
@@ -568,9 +569,36 @@ async def billing_create_order(body: BillingOrderIn,
         order = billing.create_order(str(user["tenant_id"]), body.plan)
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
-    # 支付链接的 return_url 指向前端站点（非 API base），使同步回跳落到应用页
+    # 支付页是应用内的 /pay/{no}（自动提交表单到支付宝），不是网关直链——
+    # 直链的 biz_content 拼在 URL 里会被风控判钓鱼页（2026-11-26 实测）
     return {**order,
+            "pay_url": f"{base}/pay/{order['out_trade_no']}",
             "return_url": f"{base}{body.return_path}?order={order['out_trade_no']}"}
+
+
+@app.get("/pay/{out_trade_no}", response_class=HTMLResponse)
+async def pay_page(out_trade_no: str, request: Request) -> HTMLResponse:
+    """公开支付页：按单号渲染自动提交表单，浏览器打开即跳支付宝收银台。
+
+    不走租户鉴权——买单人本就不一定是登录用户，可信度靠支付侧签名：
+    网关收到的 biz_content/金额/单号仍由服务端签名，篡改页面改不了钱。
+    订单不存在 404；已支付如实提示，不允许重复跳收银台。
+    """
+    order = billing.get_order_by_no(out_trade_no)
+    if order is None:
+        raise HTTPException(status_code=404, detail="订单不存在")
+    if str(order["status"]).upper() != "PENDING":
+        return HTMLResponse(
+            "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\">"
+            "<title>订单状态</title></head><body>"
+            f"<p>订单 {out_trade_no} 状态为 {order['status']}，无需重复支付。</p>"
+            "</body></html>")
+    base = _public_base(request)
+    form = payment.page_pay_form(
+        out_trade_no, billing.PLANS[order["plan"]]["subject"],
+        float(order["amount"]),
+        return_url=f"{base}/app?order={out_trade_no}")
+    return HTMLResponse(form)
 
 
 def _public_base(request: Request) -> str:

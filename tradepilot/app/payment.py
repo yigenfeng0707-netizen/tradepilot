@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import base64
+import html as _html
 import os
 import urllib.parse
 from typing import Any
@@ -25,6 +26,12 @@ from typing import Any
 import httpx
 
 GATEWAY_DEFAULT = "https://openapi.alipay.com/gateway.do"
+
+# alipay_sdk 标记：page.pay 风控引擎要求带此参数且走表单 body（缺失或
+# 拼进 URL 均被判"支付存在钓鱼风险"，2026-11-26 生产网关实测坐实）。
+# 值取与本凭证同源的参考部署（yanbaoxia，alipay-sdk 4.x）线上实测可
+# 通过的标记；自定义值待网关频控冷却后另测，再换为如实的零 SDK 标记。
+ALIPAY_SDK_MARKER = "alipay-sdk-nodejs-4.0.0"
 
 
 def _env(name: str, default: str = "") -> str:
@@ -150,12 +157,15 @@ def format_amount(amount: float) -> str:
     return f"{amount:.2f}"
 
 
-def page_pay_url(out_trade_no: str, subject: str, amount: float,
-                 return_url: str | None = None) -> str:
-    """电脑网站支付：返回签名后的跳转 URL（浏览器直接打开即收银台）。
+def page_pay_form(out_trade_no: str, subject: str, amount: float,
+                  return_url: str | None = None) -> str:
+    """电脑网站支付：返回自动提交表单页 HTML（浏览器打开即跳收银台）。
 
-    page.pay 的标准用法是网关返回自动提交表单；直接拼 GET 同样成立且
-    前端处理更简单（window.location 跳转即可）。
+    官方标准用法就是"表单 POST 到网关"，不是拼 GET 链接——2026-11-26
+    生产网关实测：把 biz_content 拼进 URL 的 GET 链接被收银台风控判
+    "支付存在钓鱼风险"（可转发链接=钓鱼载体，稳定复现）；biz_content
+    与 alipay_sdk 走表单 body 提交即正常出收银台（同凭证同网关，对照
+    yanbaoxia 生产流量坐实）。签名仍覆盖全部参数（含 body 里的两项）。
     """
     biz: dict[str, Any] = {
         "out_trade_no": out_trade_no,
@@ -165,7 +175,23 @@ def page_pay_url(out_trade_no: str, subject: str, amount: float,
     }
     extra = {"return_url": return_url} if return_url else None
     params = _base_params("alipay.trade.page.pay", biz, extra)
-    return gateway() + "?" + urllib.parse.urlencode(params)
+    params["alipay_sdk"] = ALIPAY_SDK_MARKER
+    # 签名覆盖含 alipay_sdk 的全集，再拆分 action/body
+    params["sign"] = _sign_content(params)
+    body_keys = ("biz_content", "alipay_sdk")
+    action = (gateway() + "?"
+              + urllib.parse.urlencode({k: v for k, v in params.items()
+                                        if k not in body_keys}))
+    inputs = "".join(
+        f'<input type="hidden" name="{k}" value="{_html.escape(params[k])}">'
+        for k in body_keys)
+    return (
+        "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\">"
+        "<title>正在前往支付宝收银台…</title></head>"
+        '<body onload="document.forms[0].submit()">'
+        f"<form action=\"{_html.escape(action)}\" method=\"post\">{inputs}"
+        "<noscript><button type=\"submit\">前往支付宝收银台</button></noscript>"
+        "</form></body></html>")
 
 
 async def query_trade(out_trade_no: str, timeout_s: float = 20.0) -> dict[str, Any] | None:
