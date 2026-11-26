@@ -207,6 +207,85 @@ class TestConfigGate(unittest.TestCase):
             os.environ["ALIPAY_PRIVATE_KEY"] = saved
 
 
+class TestNotifyEndpointMultipart(unittest.TestCase):
+    """端点级回归：POST /alipay/notify 必须走 request.form()。
+
+    2026-11-26 线上实测：starlette 1.10 的 request.form() 即使是
+    application/x-www-form-urlencoded 也强依赖 python-multipart，
+    requirements 漏登该库时此端点一律 AssertionError→500，异步通知
+    链路全程失效（下单与主动查询不受影响——它们不走 form 解析）。
+    本测试以 urlencoded 真表单打到真实路由，缺失该库时立即 500。
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        from fastapi.testclient import TestClient
+        from app.main import app
+        cls._cm = TestClient(app)
+        cls._cm.__enter__()
+        cls.client = cls._cm
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._cm.__exit__(None, None, None)
+
+    def setUp(self):
+        with billing._db() as conn:
+            conn.execute("DELETE FROM orders")
+            conn.execute("DELETE FROM notify_seen")
+        with quota._db() as conn:
+            conn.execute("DELETE FROM tenant_limits")
+        self.order = billing.create_order("tenant-A", "pro")
+
+    def _post_form(self, **over):
+        base = {
+            "app_id": "2021000000000001",
+            "charset": "utf-8",
+            "sign_type": "RSA2",
+            "trade_status": "TRADE_SUCCESS",
+            "out_trade_no": self.order["out_trade_no"],
+            "trade_no": "2026112622001000000001",
+            "total_amount": payment.format_amount(self.order["amount"]),
+            "seller_id": "2088000000000001",
+            "notify_id": f"NID-EP-{_counter()}",
+            "notify_time": "2026-11-26 12:00:00",
+            "notify_type": "trade_status_sync",
+        }
+        base.update(over)
+        base["sign"] = payment._sign_content(base)
+        return self.client.post(
+            "/alipay/notify", data=base,
+            headers={"Content-Type": "application/x-www-form-urlencoded"})
+
+    def test_valid_notify_returns_success_text(self):
+        r = self._post_form()
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(r.text, "success")
+        self.assertEqual(
+            billing.get_order("tenant-A", self.order["out_trade_no"])["status"],
+            "PAID")
+
+    def test_tampered_sign_returns_fail_not_500(self):
+        # 构造合法表单后只破坏 sign 一处：验签零信任，且不得 500
+        form = {
+            "app_id": "2021000000000001",
+            "charset": "utf-8",
+            "sign_type": "RSA2",
+            "trade_status": "TRADE_SUCCESS",
+            "out_trade_no": self.order["out_trade_no"],
+            "trade_no": "2026112622001000000002",
+            "total_amount": payment.format_amount(self.order["amount"]),
+            "seller_id": "2088000000000001",
+            "notify_id": f"NID-EP-{_counter()}-tamper",
+            "notify_time": "2026-11-26 12:00:00",
+            "notify_type": "trade_status_sync",
+        }
+        form["sign"] = payment._sign_content(form)[:-4] + "AAAA"
+        r = self.client.post("/alipay/notify", data=form)
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(r.text, "fail")
+
+
 _counter_seq = [0]
 
 

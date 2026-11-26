@@ -13,3 +13,6 @@ pydantic==2.14.2
 argon2-cffi==25.1.0    # app/auth.py：argon2id 密码哈希（M3）
 cryptography==50.0.2    # app/payment.py：支付宝 RSA2 签名/验签（不引支付 SDK，链路可见）
 PyJWT==2.12.1          # app/auth.py：访问/刷新令牌（M3）
+python-multipart==0.0.34  # /alipay/notify：starlette 1.10 的 request.form() 即
+                       # urlencoded 也强依赖此库，缺失即 AssertionError→500（2026-11-26
+                       # 线上 notify 端点实测 500 复现，端到端回归补 multipart 用例）
