@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import base64
 import os
-import time
 import urllib.parse
 from typing import Any
 
@@ -88,7 +87,7 @@ def _sign_content(params: dict[str, str]) -> str:
     items = sorted((k, v) for k, v in params.items()
                    if k != "sign" and v != "")
     content = "&".join(f"{k}={v}" for k, v in items)
-    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives import hashes
     from cryptography.hazmat.primitives.asymmetric import padding
 
     sig = _load_private_key().sign(
