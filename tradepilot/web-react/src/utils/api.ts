@@ -310,6 +310,39 @@ export async function fetchMe(): Promise<AuthUser> {
   return request<AuthUser>('/auth/me');
 }
 
+// ===== 计费（支付宝电脑网站支付）=====
+// 下单价格/权益由服务端 PLANS 决定，前端只传 plan 名。
+export interface BillingOrder {
+  out_trade_no: string;
+  plan: string;
+  amount: number;
+  subject: string;
+  test: boolean;
+  status: 'PENDING' | 'PAID';
+  pay_url?: string;
+  trade_no?: string | null;
+  paid_at?: string | null;
+  created_at?: string;
+}
+
+export async function createBillingOrder(plan: string): Promise<BillingOrder> {
+  return request<BillingOrder>('/billing/create-order', {
+    method: 'POST',
+    body: JSON.stringify({ plan, return_path: '/pricing' }),
+  });
+}
+
+export async function fetchBillingOrders(): Promise<BillingOrder[]> {
+  const res = await request<{ orders: BillingOrder[] }>('/billing/orders');
+  return res.orders || [];
+}
+
+export async function syncBillingOrder(outTradeNo: string): Promise<BillingOrder> {
+  return request<BillingOrder>(`/billing/orders/${outTradeNo}/sync`, {
+    method: 'POST',
+  });
+}
+
 // 后端 JSON 响应边界类型：响应形状尚未契约化（逐端点在用现场窄化），
 // 与其每处 any 触发 lint，不如集中一个受控别名。改动此类型必须同步检查窄化。
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

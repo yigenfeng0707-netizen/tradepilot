@@ -67,7 +67,38 @@ def init_db() -> None:
             updated_at TEXT NOT NULL,
             PRIMARY KEY (tenant_id, day)
         );
+        CREATE TABLE IF NOT EXISTS tenant_limits (
+            tenant_id   TEXT PRIMARY KEY,
+            daily_limit INTEGER NOT NULL,      -- 0 = 不限量
+            reason      TEXT NOT NULL DEFAULT '',
+            updated_at  TEXT NOT NULL
+        );
         """)
+
+
+def set_tenant_limit(tenant_id: str, daily_limit: int, reason: str = "") -> None:
+    """付费/运营写入的租户级配额覆盖。与全局默认同语义：0=不限量。"""
+    if not tenant_id:
+        return
+    with _db() as conn:
+        conn.execute(
+            "INSERT INTO tenant_limits (tenant_id, daily_limit, reason, updated_at)"
+            " VALUES (?,?,?,?)"
+            " ON CONFLICT(tenant_id) DO UPDATE SET daily_limit=excluded.daily_limit,"
+            " reason=excluded.reason, updated_at=excluded.updated_at",
+            (tenant_id, int(daily_limit), reason, _now_iso()))
+
+
+def tenant_daily_limit(tenant_id: str) -> int:
+    """有效上限 = 租户覆盖（无则全局默认）。匿名走全局。"""
+    if tenant_id:
+        with _db() as conn:
+            row = conn.execute(
+                "SELECT daily_limit FROM tenant_limits WHERE tenant_id = ?",
+                (tenant_id,)).fetchone()
+        if row is not None:
+            return int(row["daily_limit"])
+    return default_daily_limit()
 
 
 @contextmanager
@@ -82,7 +113,7 @@ def _db():
 
 def status(tenant_id: str) -> dict[str, Any]:
     """当前用量快照（不扣减）。limit=0 表示配额关闭（不限量），明示口径。"""
-    limit = default_daily_limit()
+    limit = tenant_daily_limit(tenant_id)
     if not tenant_id:
         return {"limited": False, "note": "匿名请求无租户配额"}
     with _db() as conn:
@@ -100,7 +131,7 @@ def consume(tenant_id: str, weight: float = 1.0) -> dict[str, Any]:
     原子性靠 SQLite 单写者 + 同一事务里读改写；中间件串行调用本函数，
     无并发竞争面（多实例部署时应换 Postgres 的 UPDATE ... RETURNING）。
     """
-    limit = default_daily_limit()
+    limit = tenant_daily_limit(tenant_id)
     if not tenant_id or limit <= 0:
         s = status(tenant_id)
         return {"allowed": True, **s}

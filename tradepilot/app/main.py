@@ -16,7 +16,8 @@ from fastapi.responses import (FileResponse, JSONResponse, PlainTextResponse,
                                RedirectResponse, StreamingResponse)
 from pydantic import BaseModel
 
-from . import auth, llm, monitoring, provenance, quota, shops, store, usage
+from . import (auth, billing, llm, monitoring, payment, provenance, quota,
+               shops, store, usage)
 from .datasources import lazada, shopee, shopify
 from .datasources import marketplace_auth as mauth
 from .request_context import current_tenant_id
@@ -39,6 +40,7 @@ async def lifespan(_: FastAPI):
     quota.init_db()
     usage.init_db()
     shops.init_db()
+    billing.init_db()
     yield
     shutdown_browser()  # Cloud Run 优雅停机：释放复用中的 Chromium
 
@@ -75,7 +77,9 @@ async def health() -> dict[str, Any]:
             "data_dir": CONFIG.data_dir,
             "respect_robots": CONFIG.respect_robots,
             "llm": llm.available(),
-            "llm_model": CONFIG.llm_model if llm.available() else None}
+            "llm_model": CONFIG.llm_model if llm.available() else None,
+            # 支付在线与否同样要看得见：收银台坏掉不能靠用户下单失败才发现
+            "billing": payment.configured()}
 
 
 # 请求级权重（M4 配额口径）：一次全链路内部会调多次 LLM，但商业单位是
@@ -536,6 +540,82 @@ async def me_usage(request: Request) -> dict[str, Any]:
     return {"tenant_id": tid,
             "quota": quota.status(tid),
             "llm_usage": usage.tenant_stats(tid)}
+
+
+class BillingOrderIn(BaseModel):
+    plan: str                        # pro | self_test（价格/权益服务端定，客户端传不了金额）
+    return_path: str = "/app"        # 支付宝同步回跳目标（前端传，须以 / 开头）
+
+
+@app.post("/api/billing/create-order")
+async def billing_create_order(body: BillingOrderIn,
+                               request: Request) -> dict[str, Any]:
+    """下单：登录租户按套餐创建订单并签名支付链接。
+
+    未配置支付凭证时 503 明说（fail closed，不假装能收钱）。
+    价格、权益、自测标记全在服务端 PLANS，防低价下单。
+    """
+    user = auth.current_user(request.headers.get("authorization"),
+                             request.headers.get("x-auth-token"))
+    if user is None:
+        raise HTTPException(status_code=401, detail="未认证或令牌已过期")
+    if body.plan not in billing.PLANS:
+        raise HTTPException(status_code=400, detail="未知套餐")
+    if not body.return_path.startswith("/") or ".." in body.return_path:
+        raise HTTPException(status_code=400, detail="回跳路径非法")
+    base = _public_base(request)
+    try:
+        order = billing.create_order(str(user["tenant_id"]), body.plan)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    # 支付链接的 return_url 指向前端站点（非 API base），使同步回跳落到应用页
+    return {**order,
+            "return_url": f"{base}{body.return_path}?order={order['out_trade_no']}"}
+
+
+def _public_base(request: Request) -> str:
+    """代理后的公网基址：优先转发头，退化到 base_url。支付宝 return_url
+    必须是公网可访问的绝对地址，内网 host 会导致回跳失败。"""
+    host = request.headers.get("x-forwarded-host")
+    proto = request.headers.get("x-forwarded-proto", "https")
+    if host:
+        return f"{proto}://{host.rstrip('/')}"
+    return str(request.base_url).rstrip("/")
+
+
+@app.get("/api/billing/orders")
+async def billing_orders(request: Request) -> dict[str, Any]:
+    """我的订单（只看自己的）。"""
+    user = auth.current_user(request.headers.get("authorization"),
+                             request.headers.get("x-auth-token"))
+    if user is None:
+        raise HTTPException(status_code=401, detail="未认证或令牌已过期")
+    return {"orders": billing.list_orders(str(user["tenant_id"]))}
+
+
+@app.post("/api/billing/orders/{out_trade_no}/sync")
+async def billing_order_sync(out_trade_no: str, request: Request) -> dict[str, Any]:
+    """主动对账（查询兜底）：通知没到/用户回跳时也能确认支付结果。"""
+    user = auth.current_user(request.headers.get("authorization"),
+                             request.headers.get("x-auth-token"))
+    if user is None:
+        raise HTTPException(status_code=401, detail="未认证或令牌已过期")
+    order = await billing.sync_order(str(user["tenant_id"]), out_trade_no)
+    if order is None:
+        raise HTTPException(status_code=404, detail="订单不存在或不属于当前租户")
+    return order
+
+
+@app.post("/alipay/notify")
+async def alipay_notify(request: Request) -> PlainTextResponse:
+    """支付宝异步通知：验签 + 业务校验 + 幂等履约，回 success/fail。
+
+    公网可访问（不走租户鉴权——可信度全靠 RSA2 验签）；
+    失败回 fail 让支付宝按策略重试，不编造成功。
+    """
+    form = dict(await request.form())
+    return PlainTextResponse(billing.handle_notify(form))
+
 
 
 @app.get("/api/admin/trends")

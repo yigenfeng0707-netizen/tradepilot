@@ -1,7 +1,10 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, ChevronDown, ChevronUp, Sparkles, X } from 'lucide-react';
+import {
+  BillingOrder, createBillingOrder, fetchBillingOrders, syncBillingOrder,
+} from '../utils/api';
 
 interface Plan {
   name: string;
@@ -68,6 +71,7 @@ const fadeUp = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
 
 export default function Pricing() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [showContactModal, setShowContactModal] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
@@ -76,14 +80,55 @@ export default function Pricing() {
     email: '',
     phone: '',
   });
+  const [orders, setOrders] = useState<BillingOrder[]>([]);
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState<string | null>(null);
 
-  const handleCtaClick = (planName: string) => {
+  const loggedIn = Boolean(localStorage.getItem('tp_access_token'));
+
+  const loadOrders = async () => {
+    if (!loggedIn) return;
+    try { setOrders(await fetchBillingOrders()); } catch { /* 订单列表失败不阻塞页面 */ }
+  };
+
+  useEffect(() => { loadOrders(); }, [loggedIn]);
+
+  // 同步回跳：支付宝付完跳回 /pricing?order=OUT_TRADE_NO，主动对账兜底
+  // （异步通知可能晚于回跳——真相以 trade.query 为准）
+  useEffect(() => {
+    const no = searchParams.get('order');
+    if (!no || !loggedIn) return;
+    setSyncing(no);
+    syncBillingOrder(no)
+      .then(() => loadOrders())
+      .catch(() => undefined)
+      .finally(() => setSyncing(null));
+  }, [searchParams, loggedIn]);
+
+  const handleCtaClick = async (planName: string) => {
     if (planName === '私有化部署') {
       setShowContactModal(true);
       setSubmitSuccess(false);
-    } else {
-      navigate('/login');
+      return;
     }
+    if (!loggedIn) { navigate('/login'); return; }
+    if (planName === '内测版') { navigate('/app'); return; }
+    // 正式版：下单 → 跳支付宝官方收银台（page.pay 签名链接由后端生成）
+    setPaying(true); setPayError(null);
+    try {
+      const order = await createBillingOrder('pro');
+      window.location.href = order.pay_url as string;
+    } catch (e) {
+      setPayError(e instanceof Error ? e.message : '下单失败');
+      setPaying(false);
+    }
+  };
+
+  const handleSync = async (no: string) => {
+    setSyncing(no);
+    try { await syncBillingOrder(no); } catch { /* 查询失败保留现状 */ }
+    finally { setSyncing(null); loadOrders(); }
   };
 
   const handleContactSubmit = (e: React.FormEvent) => {
@@ -149,13 +194,74 @@ export default function Pricing() {
                   : 'bg-jade-500 text-ocean-900 hover:bg-jade-400'
               }`}
               onClick={() => handleCtaClick(plan.name)}
+              disabled={paying}
             >
               {plan.highlight && <Sparkles size={14} className="inline mr-1" />}
-              {plan.cta}
+              {plan.name === '正式版' && paying ? '正在创建订单…' : plan.cta}
             </button>
+            {plan.name === '正式版' && payError && (
+              <p className="mt-2 text-xs text-red-400">{payError}</p>
+            )}
+            {plan.name === '正式版' && orders.some((o) => o.status === 'PAID' && !o.test) && (
+              <p className="mt-2 text-xs text-jade-400">已订阅正式版，配额已升级至 2000 点/日。</p>
+            )}
           </motion.div>
         ))}
       </div>
+
+      {/* 我的订单（登录后可见）——状态如实展示，自测单明确标注 */}
+      {loggedIn && orders.length > 0 && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <h2 className="text-xl font-medium text-white mb-4">我的订单</h2>
+          <div className="overflow-x-auto rounded-xl border border-white/5">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-white/5 bg-ocean-950/50">
+                  <th className="px-4 py-3 text-left text-gray-400 font-medium">订单号</th>
+                  <th className="px-4 py-3 text-left text-gray-400 font-medium">商品</th>
+                  <th className="px-4 py-3 text-right text-gray-400 font-medium">金额</th>
+                  <th className="px-4 py-3 text-center text-gray-400 font-medium">状态</th>
+                  <th className="px-4 py-3 text-right text-gray-400 font-medium">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.map((o) => (
+                  <tr key={o.out_trade_no} className="border-b border-white/5">
+                    <td className="px-4 py-3 text-gray-400 font-mono text-xs">{o.out_trade_no}</td>
+                    <td className="px-4 py-3 text-gray-300">
+                      {o.subject}
+                      {o.test && (
+                        <span className="ml-2 rounded bg-gold-500/20 px-1.5 py-0.5 text-xs text-gold-400">
+                          支付链路自测单
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right text-gray-300">¥{o.amount.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-center">
+                      {o.status === 'PAID' ? (
+                        <span className="rounded bg-jade-500/20 px-2 py-0.5 text-xs text-jade-400">已支付</span>
+                      ) : (
+                        <span className="rounded bg-white/10 px-2 py-0.5 text-xs text-gray-400">待支付</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {o.status !== 'PAID' && (
+                        <button
+                          onClick={() => handleSync(o.out_trade_no)}
+                          disabled={syncing === o.out_trade_no}
+                          className="rounded bg-ocean-800 px-3 py-1 text-xs text-white hover:bg-ocean-700 disabled:opacity-50"
+                        >
+                          {syncing === o.out_trade_no ? '对账中…' : '查询支付结果'}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </motion.div>
+      )}
 
       {/* Comparison Table */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>

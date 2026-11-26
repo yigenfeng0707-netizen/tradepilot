@@ -11,4 +11,5 @@ httpx==0.28.1
 playwright==1.64.1
 pydantic==2.14.2
 argon2-cffi==25.1.0    # app/auth.py：argon2id 密码哈希（M3）
+cryptography==50.0.2    # app/payment.py：支付宝 RSA2 签名/验签（不引支付 SDK，链路可见）
 PyJWT==2.12.1          # app/auth.py：访问/刷新令牌（M3）
