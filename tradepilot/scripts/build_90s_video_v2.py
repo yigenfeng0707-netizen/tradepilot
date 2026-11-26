@@ -19,13 +19,13 @@ import json
 import os
 import subprocess
 import sys
-
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-import release_info  # 发布地址单一来源
 import tempfile
 import urllib.request
 import wave
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import release_info  # 发布地址单一来源
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -275,7 +275,9 @@ def main() -> int:
     # 背景静音垫（总时长）
     silence = WORK / "silence.wav"
     with wave.open(str(silence), "wb") as w:
-        w.setnchannels(1); w.setsampwidth(2); w.setframerate(24000)
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(24000)
         w.writeframes(b"\x00\x00" * int(24000 * (total + 1)))
     inputs += ["-i", str(silence)]
     base = 0  # silence 是第 0 路
@@ -290,7 +292,9 @@ def main() -> int:
     srt_idx = 0
 
     def srt_stamp(t: float) -> str:
-        h = int(t // 3600); m = int(t % 3600 // 60); s = t % 60
+        h = int(t // 3600)
+        m = int(t % 3600 // 60)
+        s = t % 60
         return f"{h:02d}:{m:02d}:{int(s):02d},{int((s - int(s)) * 1000):03d}"
 
     for key, pos in pos_map:
@@ -329,7 +333,6 @@ def main() -> int:
     backup = OUT.with_name(OUT.name + ".bak")
     if OUT.exists() and not backup.exists():
         OUT.rename(backup)  # 首次：备份旧版视频；后续重建直接覆盖，备份只留原版
-    fonts_dir = "C\\:/Windows/Fonts"
     # filtergraph 里 ':' 与 '\' 均为转义符 —— 用相对路径 + cwd 规避 Windows 路径转义
     run([FFMPEG, "-y", "-i", str(vid), "-i", str(aud),
          "-vf", "subtitles=narr.srt:fontsdir='C\\:/Windows/Fonts':"
